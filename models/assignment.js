@@ -23,7 +23,7 @@ const assignmentSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  classID: {
+  classroomID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Classroom",
     required: true,

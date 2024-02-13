@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
   phoneNumber: {
     type: String,
   },
-  classID: {
+  classroomID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Class",
   },
@@ -54,9 +54,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  isAccepted: {
+    type: Boolean,
+    default: false,
+  },
+  rollNo: {
+    type: String,
+  },
 });
-
-userSchema.plugin(passportLocalMongoose);
 
 const User = mongoose.model("User", userSchema);
 

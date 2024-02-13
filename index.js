@@ -16,6 +16,11 @@ const userRouter = require("./routes/user");
 
 const mongoose = require("mongoose");
 
+var debug = require("debug")("tyre-project:server");
+var http = require("http");
+const classoomRouter = require("./routes/classroom");
+const announcementRouter = require("./routes/announcements");
+
 var app = express();
 
 app.use(logger("dev"));
@@ -54,6 +59,8 @@ app.use(passport.session());
 
 // api routes
 app.use("/api/user/", userRouter);
+app.use("/api/classroom/", classoomRouter);
+app.use("/api/announcement/", announcementRouter);
 
 app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "public", "index.html"));
@@ -83,9 +90,6 @@ mongoose.connect(db, (err) => {
     console.log("Connected to MongoDB");
   }
 });
-
-var debug = require("debug")("tyre-project:server");
-var http = require("http");
 
 var port = normalizePort(process.env.PORT || "3001");
 app.set("port", port);

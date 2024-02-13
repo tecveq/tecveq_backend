@@ -39,3 +39,24 @@ exports.login = (req, res, next) => {
     });
   })(req, res, next);
 };
+
+exports.logout = (req, res) => {
+  try {
+    req.logout();
+    res.send("Logged out");
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateUser = async (req, res, next) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.user._id, req.body, {
+      new: true,
+    });
+
+    return res.status(200).send(user._doc);
+  } catch (err) {
+    next(err);
+  }
+};
