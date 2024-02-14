@@ -6,7 +6,6 @@ exports.createClassroom = async (req, res, next) => {
 
     if (
       !data.name ||
-      !data.levelID ||
       !data.students ||
       !data.teachers ||
       data.students.length < 1 ||
@@ -27,7 +26,7 @@ exports.createClassroom = async (req, res, next) => {
     }
 
     //check if user is a teacher
-    if (currUser.role == "teacher") {
+    if (currUser.userType == "teacher") {
       data.teachers = [
         {
           teacher: currUser._id,
@@ -35,6 +34,9 @@ exports.createClassroom = async (req, res, next) => {
         },
       ];
     } else {
+      if (!data.levelID) {
+        return res.status(400).send("Level is required");
+      }
       // check if student is already in another classroom
       const students = data.students;
       for (let i = 0; i < students.length; i++) {

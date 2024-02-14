@@ -8,7 +8,6 @@ const classroomSchema = new mongoose.Schema({
   levelID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Level",
-    required: true,
   },
   students: [
     {
