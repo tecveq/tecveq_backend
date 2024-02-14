@@ -5,6 +5,11 @@ const classroomSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  levelID: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Level",
+    required: true,
+  },
   students: [
     {
       type: mongoose.Schema.Types.ObjectId,
@@ -13,8 +18,14 @@ const classroomSchema = new mongoose.Schema({
   ],
   teachers: [
     {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      teacher: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      subject: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Subject",
+      },
     },
   ],
 });

@@ -5,16 +5,12 @@ const classSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  date: {
+  startTime: {
     type: Date,
     required: true,
   },
-  startTime: {
-    type: String,
-    required: true,
-  },
   endTime: {
-    type: String,
+    type: Date,
     required: true,
   },
   createdBy: {
@@ -31,10 +27,21 @@ const classSchema = new mongoose.Schema({
     ref: "Classroom",
     required: true,
   },
-  teacherStatus: {
-    type: String,
+  subjectID: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Subject",
     required: true,
-    enum: ["present", "absent", "leave"],
+  },
+  teacher: {
+    teacherID: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    status: {
+      type: String,
+      required: true,
+      enum: ["present", "absent", "leave"],
+    },
   },
   attendance: [
     {

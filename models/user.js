@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const passportLocalMongoose = require("passport-local-mongoose");
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -27,9 +26,9 @@ const userSchema = new mongoose.Schema({
   phoneNumber: {
     type: String,
   },
-  classroomID: {
+  levelID: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Class",
+    ref: "Level",
   },
   guardianName: {
     type: String,

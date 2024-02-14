@@ -4,6 +4,63 @@ exports.createClassroom = async (req, res, next) => {
   try {
     const data = req.body;
 
+    if (
+      !data.name ||
+      !data.levelID ||
+      !data.students ||
+      !data.teachers ||
+      data.students.length < 1 ||
+      data.teachers.length < 1
+    ) {
+      return res.status(400).send("All fields are required");
+    }
+
+    const currUser = req.user;
+
+    //check if same name classroom exists in the same level
+    const classroomFound = await Classroom.findOne({
+      name: data.name,
+      levelID: data.levelID,
+    });
+    if (classroomFound) {
+      return res.status(400).send("Classroom already exists");
+    }
+
+    //check if user is a teacher
+    if (currUser.role == "teacher") {
+      data.teachers = [
+        {
+          teacher: currUser._id,
+          status: "present",
+        },
+      ];
+    } else {
+      // check if student is already in another classroom
+      const students = data.students;
+      for (let i = 0; i < students.length; i++) {
+        const student = students[i];
+        const classroom = await Classroom.findOne({ students: student });
+        if (classroom) {
+          return res
+            .status(400)
+            .send("Student is already in another classroom");
+        }
+      }
+      //check if teacher is already in another classroom
+      const teachers = data.teachers;
+      for (let i = 0; i < teachers.length; i++) {
+        const teacher = teachers[i].teacher;
+        const classroom = await Classroom.findOne({
+          "teachers.teacher": teacher,
+        });
+        if (classroom) {
+          return res
+            .status(400)
+            .send("Teacher is already in another classroom");
+        }
+      }
+    }
+
     const classroom = new Classroom(data);
 
     await classroom.save();

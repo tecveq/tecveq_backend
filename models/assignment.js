@@ -28,13 +28,16 @@ const assignmentSchema = new mongoose.Schema({
     ref: "Classroom",
     required: true,
   },
-  submittedBy: [
+  submissions: [
     {
       studentID: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
       feedback: {
+        type: String,
+      },
+      grade: {
         type: String,
       },
       file: {

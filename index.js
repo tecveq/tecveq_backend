@@ -20,6 +20,9 @@ var debug = require("debug")("tyre-project:server");
 var http = require("http");
 const classoomRouter = require("./routes/classroom");
 const announcementRouter = require("./routes/announcements");
+const subjectRouter = require("./routes/subject");
+const levelRouter = require("./routes/level");
+const classRouter = require("./routes/class");
 
 var app = express();
 
@@ -61,6 +64,9 @@ app.use(passport.session());
 app.use("/api/user/", userRouter);
 app.use("/api/classroom/", classoomRouter);
 app.use("/api/announcement/", announcementRouter);
+app.use("/api/subject/", subjectRouter);
+app.use("/api/level/", levelRouter);
+app.use("/api/class/", classRouter);
 
 app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "public", "index.html"));
