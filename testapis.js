@@ -70,3 +70,17 @@
 //     "status": "present"
 //   },
 // }
+
+//body of request to reschedule class
+// {
+//   "title": "this is topic",
+//   "startTime": "2024-02-17T08:30:13.386+00:00",
+//   "endTime": "2024-02-17T10:00:13.386+00:00",
+//   "oneTime": false,
+//   "classroomID": "65ccabc2d3cc7640040baab4",
+//   "subjectID": "65ccaae6fc6ffe2ac4fe3f88",
+//   "teacher": {
+//     "teacherID": "65cca68c9747c80928061e71",
+//     "status": "present"
+//   },
+// }
