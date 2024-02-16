@@ -20,6 +20,7 @@ const quizSchema = new mongoose.Schema({
   ],
   canSubmitAfterTime: {
     type: Boolean,
+    required: true,
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -51,6 +52,10 @@ const quizSchema = new mongoose.Schema({
       },
       submittedAt: {
         type: Date,
+        default: Date.now,
+      },
+      isLate: {
+        type: Boolean,
       },
     },
   ],

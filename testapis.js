@@ -84,3 +84,17 @@
 //     "status": "present"
 //   },
 // }
+
+//body of request to create assignment
+// {
+//   "title": "this is title",
+//   "totalMarks": 100,
+//   "dueDate": "2024-02-17T08:30:13.386+00:00",
+//   "files": ["file1", "file2"],
+//   "classroomID": "65ccabc2d3cc7640040baab4"
+// }
+
+//body request to submit assignment
+// {
+//   "file": "file1"
+// }

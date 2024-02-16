@@ -23,6 +23,8 @@ const announcementRouter = require("./routes/announcements");
 const subjectRouter = require("./routes/subject");
 const levelRouter = require("./routes/level");
 const classRouter = require("./routes/class");
+const assignmentRouter = require("./routes/assignment");
+const quizRouter = require("./routes/quiz");
 
 var app = express();
 
@@ -67,6 +69,8 @@ app.use("/api/announcement/", announcementRouter);
 app.use("/api/subject/", subjectRouter);
 app.use("/api/level/", levelRouter);
 app.use("/api/class/", classRouter);
+app.use("/api/assignment/", assignmentRouter);
+app.use("/api/quiz/", quizRouter);
 
 app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "public", "index.html"));

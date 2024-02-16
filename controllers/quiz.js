@@ -1,0 +1,219 @@
+const Classroom = require("../models/classroom");
+const Quiz = require("../models/quiz");
+
+exports.createQuiz = async (req, res, next) => {
+  const { title, totalMarks, dueDate, files, canSubmitAfterTime, classroomID } =
+    req.body;
+  const createdBy = req.user._id;
+  try {
+    //check if classroom exists and teacher is part of that classroom
+
+    const classroom = await Classroom.findById(classroomID);
+    if (!classroom) {
+      return res.status(404).send();
+    }
+    const isTeacher = classroom.teachers.find(
+      (tea) => tea.teacher.toString() == req.user._id.toString()
+    );
+    if (!isTeacher) {
+      return res.status(403).send();
+    }
+
+    const quiz = new Quiz({
+      title,
+      totalMarks,
+      dueDate,
+      files,
+      canSubmitAfterTime,
+      createdBy,
+      classroomID,
+    });
+    await quiz.save();
+    res.status(201).send(quiz);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.editQuiz = async (req, res, next) => {
+  const { title, totalMarks, dueDate, files, canSubmitAfterTime } = req.body;
+  const { id } = req.params;
+  try {
+    // check if quiz exists and teacher who created quiz is editing it
+
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).send();
+    }
+    if (quiz.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).send();
+    }
+    quiz.title = title;
+    quiz.totalMarks = totalMarks;
+    quiz.dueDate = dueDate;
+    quiz.files = files;
+    quiz.canSubmitAfterTime = canSubmitAfterTime;
+    await quiz.save();
+    res.send(quiz);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteQuiz = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    // check if quiz exists and teacher who created quiz is deleting it
+
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).send();
+    }
+    if (quiz.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).send();
+    }
+    await quiz.remove();
+    res.send(quiz);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.submitQuiz = async (req, res, next) => {
+  const { id } = req.params;
+  const { file } = req.body;
+  try {
+    //check if quiz exists and student is part of that classroom
+
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).send();
+    }
+    const classroom = await Classroom.findById(quiz.classroomID);
+    if (!classroom) {
+      return res.status(404).send();
+    }
+    const isStudent = classroom.students.find(
+      (stu) => stu.toString() == req.user._id.toString()
+    );
+    if (!isStudent) {
+      return res.status(403).send();
+    }
+
+    //check if quiz is still open for submission
+    if (!quiz.canSubmitAfterTime) {
+      const now = new Date();
+      if (now > quiz.dueDate) {
+        return res.status(403).send("Can't submit after due date");
+      }
+    }
+
+    //check if already submitted
+    const isSubmitted = quiz.submissions.find(
+      (sub) => sub.studentID.toString() == req.user._id.toString()
+    );
+    if (isSubmitted) {
+      return res.status(403).send("Already submitted");
+    }
+
+    const submission = {
+      studentID: req.user._id,
+      file,
+      isLate: new Date() > quiz.dueDate,
+    };
+    quiz.submissions.push(submission);
+    await quiz.save();
+    res.status(201).send(quiz);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.gradeQuizes = async (req, res, next) => {
+  //grade multiple quizes
+  const { id } = req.params;
+  const { submissions } = req.body;
+  try {
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).send();
+    }
+
+    //check if submissions has marks greater than total marks
+    const invalidMarks = submissions.find((s) => s.marks > quiz.totalMarks);
+    if (invalidMarks) {
+      return res.status(400).send("Invalid marks");
+    }
+
+    // check if teacher who created quiz is grading it
+    if (quiz.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).send();
+    }
+
+    // find submission in quiz and update only marks, feedback and grade
+    const updatedSubmissions = quiz.submissions.map((submission) => {
+      const newSubmission = submissions.find(
+        (s) => s.studentID.toString() == submission.studentID.toString()
+      );
+
+      if (newSubmission) {
+        submission.marks = newSubmission.marks;
+        submission.feedback = newSubmission.feedback
+          ? newSubmission.feedback
+          : "";
+        submission.grade = "A";
+      }
+      return submission;
+    });
+
+    quiz.submissions = updatedSubmissions;
+    await quiz.save();
+    res.send(quiz);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getQuizesOfClassroom = async (req, res, next) => {
+  const { classroomID } = req.params;
+  try {
+    const quiz = await Quiz.find({ classroomID });
+    res.send(quiz);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getQuizesOfClassroomOfTeacher = async (req, res, next) => {
+  const { classroomID } = req.params;
+  const createdBy = req.user._id;
+  try {
+    const quizes = await Quiz.find({ classroomID, createdBy });
+    res.send(quizes);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getAllQuizesOfTeacher = async (req, res, next) => {
+  const createdBy = req.user._id;
+  try {
+    const quizes = await Quiz.find({ createdBy });
+    res.send(quizes);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getQuizById = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).send();
+    }
+    res.send(quiz);
+  } catch (error) {
+    next(error);
+  }
+};
