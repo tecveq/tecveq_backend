@@ -2,8 +2,15 @@ const Classroom = require("../models/classroom");
 const Quiz = require("../models/quiz");
 
 exports.createQuiz = async (req, res, next) => {
-  const { title, totalMarks, dueDate, files, canSubmitAfterTime, classroomID } =
-    req.body;
+  const {
+    title,
+    totalMarks,
+    dueDate,
+    files,
+    canSubmitAfterTime,
+    classroomID,
+    subjectID,
+  } = req.body;
   const createdBy = req.user._id;
   try {
     //check if classroom exists and teacher is part of that classroom
@@ -12,10 +19,28 @@ exports.createQuiz = async (req, res, next) => {
     if (!classroom) {
       return res.status(404).send();
     }
+
+    if (new Date() > new Date(dueDate)) {
+      return res
+        .status(400)
+        .send("Due date should be greater than current date");
+    }
+
     const isTeacher = classroom.teachers.find(
       (tea) => tea.teacher.toString() == req.user._id.toString()
     );
     if (!isTeacher) {
+      return res.status(403).send();
+    }
+
+    // check if teacher is assigned that subject in that classroom
+    const isSubjectTeacher = classroom.teachers.find(
+      (tea) =>
+        tea.teacher.toString() == req.user._id.toString() &&
+        tea.subject.toString() == subjectID
+    );
+
+    if (!isSubjectTeacher) {
       return res.status(403).send();
     }
 
@@ -27,6 +52,7 @@ exports.createQuiz = async (req, res, next) => {
       canSubmitAfterTime,
       createdBy,
       classroomID,
+      subjectID,
     });
     await quiz.save();
     res.status(201).send(quiz);
@@ -39,6 +65,13 @@ exports.editQuiz = async (req, res, next) => {
   const { title, totalMarks, dueDate, files, canSubmitAfterTime } = req.body;
   const { id } = req.params;
   try {
+    if (dueDate)
+      if (new Date() > new Date(dueDate)) {
+        return res
+          .status(400)
+          .send("Due date should be greater than current date");
+      }
+
     // check if quiz exists and teacher who created quiz is editing it
 
     const quiz = await Quiz.findById(id);
@@ -48,11 +81,14 @@ exports.editQuiz = async (req, res, next) => {
     if (quiz.createdBy.toString() !== req.user._id.toString()) {
       return res.status(403).send();
     }
-    quiz.title = title;
-    quiz.totalMarks = totalMarks;
-    quiz.dueDate = dueDate;
-    quiz.files = files;
-    quiz.canSubmitAfterTime = canSubmitAfterTime;
+
+    quiz.title = title ? title : quiz.title;
+    quiz.totalMarks = totalMarks ? totalMarks : quiz.totalMarks;
+    quiz.dueDate = dueDate ? dueDate : quiz.dueDate;
+    quiz.files = files ? files : quiz.files;
+    quiz.canSubmitAfterTime = canSubmitAfterTime
+      ? canSubmitAfterTime
+      : quiz.canSubmitAfterTime;
     await quiz.save();
     res.send(quiz);
   } catch (error) {

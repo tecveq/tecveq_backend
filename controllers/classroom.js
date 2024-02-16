@@ -1,4 +1,5 @@
 const Classroom = require("../models/classroom");
+const Subject = require("../models/subject");
 
 exports.createClassroom = async (req, res, next) => {
   try {
@@ -27,10 +28,19 @@ exports.createClassroom = async (req, res, next) => {
 
     //check if user is a teacher
     if (currUser.userType == "teacher") {
+      if (!data.subject) {
+        return res.status(400).send("Subject is required");
+      }
+      //check if subject exists
+      const subject = await Subject.findOne({ _id: data.subject });
+      if (!subject) {
+        return res.status(400).send("Subject does not exist");
+      }
+
       data.teachers = [
         {
           teacher: currUser._id,
-          status: "present",
+          subject: data.subject,
         },
       ];
     } else {

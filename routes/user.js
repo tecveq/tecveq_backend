@@ -26,4 +26,13 @@ userRouter.delete("/reject/:id", controller.rejectUser);
 // get all students
 userRouter.get("/students", controller.getAllStudents);
 
+// get students of teacher
+userRouter.get("/students-of-teacher", controller.getStudentsOfTeacher);
+
+// get student report for teacher
+userRouter.get(
+  "/student-report/:studentID",
+  controller.getStudentReportForTeacher
+);
+
 module.exports = userRouter;

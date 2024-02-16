@@ -2,7 +2,8 @@ const Assignment = require("../models/assignment");
 const Classroom = require("../models/classroom");
 
 exports.createAssignment = async (req, res, next) => {
-  const { title, totalMarks, dueDate, files, classroomID } = req.body;
+  const { title, totalMarks, dueDate, files, classroomID, subjectID } =
+    req.body;
 
   //check if classroom exists and teacher is part of that classroom
   const classroom = await Classroom.findById(classroomID);
@@ -10,10 +11,26 @@ exports.createAssignment = async (req, res, next) => {
     return res.status(404).send();
   }
 
+  // check if dueDate is greater than current date
+  if (new Date() > new Date(dueDate)) {
+    return res.status(400).send("Due date should be greater than current date");
+  }
+
   const isTeacher = classroom.teachers.find(
     (tea) => tea.teacher.toString() == req.user._id.toString()
   );
   if (!isTeacher) {
+    return res.status(403).send();
+  }
+
+  // check if teacher is assigned that subject in that classroom
+  const isSubjectTeacher = classroom.teachers.find(
+    (tea) =>
+      tea.teacher.toString() == req.user._id.toString() &&
+      tea.subject.toString() == subjectID
+  );
+
+  if (!isSubjectTeacher) {
     return res.status(403).send();
   }
 
@@ -25,6 +42,7 @@ exports.createAssignment = async (req, res, next) => {
     files,
     createdBy,
     classroomID,
+    subjectID,
   });
   try {
     await assignment.save();
@@ -38,6 +56,14 @@ exports.editAssignment = async (req, res, next) => {
   const { title, totalMarks, dueDate, files } = req.body;
   const { id } = req.params;
   try {
+    // check if dueDate is greater than current date
+    if (dueDate)
+      if (new Date() > new Date(dueDate)) {
+        return res
+          .status(400)
+          .send("Due date should be greater than current date");
+      }
+
     // check if assignment exists and teacher who created assignment is editing it
 
     const assignment = await Assignment.findById(id);
@@ -47,10 +73,13 @@ exports.editAssignment = async (req, res, next) => {
     if (assignment.createdBy.toString() !== req.user._id.toString()) {
       return res.status(403).send();
     }
-    assignment.title = title;
-    assignment.totalMarks = totalMarks;
-    assignment.dueDate = dueDate;
-    assignment.files = files;
+
+    //if title or totalMarks or dueDate or files is not provided, use the old value
+    assignment.title = title ? title : assignment.title;
+    assignment.totalMarks = totalMarks ? totalMarks : assignment.totalMarks;
+    assignment.dueDate = dueDate ? dueDate : assignment.dueDate;
+    assignment.files = files ? files : assignment.files;
+
     await assignment.save();
     res.send(assignment);
   } catch (error) {
@@ -155,7 +184,7 @@ exports.submitAssignment = async (req, res, next) => {
     const submission = {
       studentID,
       file,
-      isLate: new Date() > quiz.dueDate,
+      isLate: new Date() > assignment.dueDate,
     };
     assignment.submissions.push(submission);
     await assignment.save();

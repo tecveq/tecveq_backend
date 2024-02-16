@@ -32,6 +32,11 @@ const quizSchema = new mongoose.Schema({
     ref: "Classroom",
     required: true,
   },
+  subjectID: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Subject",
+    required: true,
+  },
   submissions: [
     {
       studentID: {
