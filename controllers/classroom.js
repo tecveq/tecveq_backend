@@ -1,5 +1,6 @@
 const Classroom = require("../models/classroom");
 const Subject = require("../models/subject");
+const Class = require("../models/class");
 
 exports.createClassroom = async (req, res, next) => {
   try {
@@ -73,7 +74,7 @@ exports.createClassroom = async (req, res, next) => {
       }
     }
 
-    const classroom = new Classroom(data);
+    const classroom = new Classroom({ ...data, createdBy: currUser._id });
 
     await classroom.save();
 
@@ -84,9 +85,41 @@ exports.createClassroom = async (req, res, next) => {
 };
 exports.getClassrooms = async (req, res, next) => {
   try {
-    const classrooms = await Classroom.find();
-
-    return res.status(200).send(classrooms);
+    const classroomsWithClasses = await Classroom.aggregate([
+      {
+        $lookup: {
+          from: "users", // Assuming the name of the users collection is "users"
+          localField: "createdBy",
+          foreignField: "_id",
+          as: "createdBy",
+        },
+      },
+      {
+        $addFields: {
+          createdBy: {
+            $cond: {
+              if: { $isArray: "$createdBy" },
+              then: {
+                $mergeObjects: [
+                  { $arrayElemAt: ["$createdBy", 0] },
+                  { password: undefined }, // Exclude the password field
+                ],
+              },
+              else: null,
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "classes", // Assuming the name of the classes collection is "classes"
+          localField: "_id",
+          foreignField: "classroomID",
+          as: "classes",
+        },
+      },
+    ]);
+    res.send(classroomsWithClasses);
   } catch (err) {
     next(err);
   }
@@ -102,21 +135,102 @@ exports.getClassroomById = async (req, res, next) => {
 };
 exports.updateClassroom = async (req, res, next) => {
   try {
-    const classroom = await Classroom.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    return res.status(200).send(classroom._doc);
+    const { name, students, teachers } = req.body;
+    // update only if current user is admin or if the classroom was created by the current user
+    const currUser = req.user;
+    const classroom = await Classroom.findById(req.params.id);
+    if (
+      (currUser.userType != "admin" && classroom.createdBy != currUser._id) ||
+      (currUser.userType == "teacher" && teachers)
+    ) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // check if same name classroom exists in the same level
+    if (name) {
+      const classroomFound = await Classroom.findOne({
+        name: name,
+        levelID: classroom.levelID,
+      });
+      if (classroomFound) {
+        return res.status(400).send("Classroom already exists");
+      }
+    }
+
+    classroom.name = name ? name : classroom.name;
+    classroom.students = students ? students : classroom.students;
+    classroom.teachers = teachers ? teachers : classroom.teachers;
+
+    await classroom.save();
+
+    return res.status(200).send(classroom);
   } catch (err) {
     next(err);
   }
 };
 exports.deleteClassroom = async (req, res, next) => {
   try {
+    // delete only if current user is admin or if the classroom was created by the current user
+    const currUser = req.user;
+    const classroom = await Classroom.findById(req.params.id);
+    if (currUser.userType != "admin" && classroom.createdBy != currUser._id) {
+      return res.status(401).send("Unauthorized");
+    }
+    // delete all classes in the classroom
+    await Class.deleteMany({ classroomID: req.params.id });
+    // delete the classroom
     await Classroom.findByIdAndDelete(req.params.id);
 
     return res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+exports.getClassroomsOfTeacher = async (req, res, next) => {
+  try {
+    const teacherID = req.user._id;
+
+    const classroomsWithClasses = await Classroom.aggregate([
+      {
+        $lookup: {
+          from: "users", // Assuming the name of the users collection is "users"
+          localField: "createdBy",
+          foreignField: "_id",
+          as: "createdBy",
+        },
+      },
+      {
+        $addFields: {
+          createdBy: {
+            $cond: {
+              if: { $isArray: "$createdBy" },
+              then: {
+                $mergeObjects: [
+                  { $arrayElemAt: ["$createdBy", 0] },
+                  { password: undefined }, // Exclude the password field
+                ],
+              },
+              else: null,
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          "teachers.teacher": teacherID,
+        },
+      },
+      {
+        $lookup: {
+          from: "classes", // Assuming the name of the classes collection is "classes"
+          localField: "_id",
+          foreignField: "classroomID",
+          as: "classes",
+        },
+      },
+    ]);
+
+    return res.status(200).send(classroomsWithClasses);
   } catch (err) {
     next(err);
   }

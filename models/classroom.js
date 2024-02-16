@@ -15,6 +15,10 @@ const classroomSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   teachers: [
     {
       teacher: {
