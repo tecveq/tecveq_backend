@@ -327,9 +327,76 @@ exports.cancelClass = async (req, res, next) => {
 
 exports.getClasses = async (req, res, next) => {
   try {
-    const classes = await Class.find();
+    const { startDate, endDate } = req.query;
 
-    return res.status(200).send(classes);
+    const userRole = req.user.userType;
+    const userId = req.user._id;
+    const userID = mongoose.Types.ObjectId(userId); // Replace userId with the actual user ID
+
+    const pipeline = [
+      {
+        $lookup: {
+          from: "classrooms",
+          localField: "classroomID",
+          foreignField: "_id",
+          as: "classroom",
+        },
+      },
+      {
+        $unwind: "$classroom",
+      },
+      {
+        $match: {
+          $expr: {
+            $and: [
+              {
+                $gte: [
+                  { $toDate: "$startTime" },
+                  { $toDate: new Date(startDate).toDateString() },
+                ],
+              },
+              {
+                $lte: [
+                  { $toDate: "$endTime" },
+                  { $toDate: new Date(endDate).toDateString() },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    ];
+
+    // // Match based on user role
+    if (userRole === "admin") {
+      // If user is admin, return all classes within the date range
+      pipeline.push({
+        $match: {
+          "classroom.students": { $exists: true },
+        },
+      });
+    } else if (userRole === "teacher") {
+      // If user is a teacher, return only classes of the teacher within the date range
+      pipeline.push({
+        $match: {
+          $and: [{ "teacher.teacherID": userID }],
+        },
+      });
+    } else if (userRole === "student") {
+      // If user is a student, return only classes of the student within the date range
+      pipeline.push({
+        $match: {
+          "classroom.students": userID,
+        },
+      });
+    }
+
+    // Add any additional pipeline stages as needed
+
+    // Execute the pipeline
+    const result = await Class.aggregate(pipeline);
+
+    return res.status(200).send(result);
   } catch (err) {
     next(err);
   }

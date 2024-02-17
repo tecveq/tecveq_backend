@@ -35,4 +35,19 @@ userRouter.get(
   controller.getStudentReportForTeacher
 );
 
+// get student report for admin
+userRouter.get(
+  "/student-report-admin/:studentID",
+  controller.getStudentReportsForAdmin
+);
+
+// get subjects of student
+userRouter.get("/student-subjects/:studentID", controller.getStudentSubjects);
+
+// get assignments and quizes of student of a subject
+userRouter.get(
+  "/student-assignments-quizes/:studentID/:subjectID",
+  controller.getStudentGradesForSubject
+);
+
 module.exports = userRouter;

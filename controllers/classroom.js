@@ -48,7 +48,6 @@ exports.createClassroom = async (req, res, next) => {
       if (!data.levelID) {
         return res.status(400).send("Level is required");
       }
-      // check if student is already in another classroom
       const students = data.students;
       for (let i = 0; i < students.length; i++) {
         const student = students[i];
