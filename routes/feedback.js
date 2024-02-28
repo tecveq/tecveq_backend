@@ -6,3 +6,5 @@ feedbackRouter.post("/", feedbackController.addFeedback);
 feedbackRouter.patch("/accept/:feedbackID", feedbackController.acceptFeedback);
 feedbackRouter.patch("/reject/:feedbackID", feedbackController.rejectFeedback);
 feedbackRouter.delete("/:feedbackID", feedbackController.deleteFeedback);
+
+module.exports = feedbackRouter;

@@ -25,7 +25,10 @@ const subjectRouter = require("./routes/subject");
 const levelRouter = require("./routes/level");
 const classRouter = require("./routes/class");
 const assignmentRouter = require("./routes/assignment");
+const notificationRouter = require("./routes/notification");
+const feedbackRouter = require("./routes/feedback");
 const quizRouter = require("./routes/quiz");
+const { io } = require("./utils/socket");
 
 var app = express();
 
@@ -72,6 +75,9 @@ app.use("/api/level/", levelRouter);
 app.use("/api/class/", classRouter);
 app.use("/api/assignment/", assignmentRouter);
 app.use("/api/quiz/", quizRouter);
+app.use("/api/notification/", notificationRouter);
+app.use("/api/feedback/", feedbackRouter);
+app.use("/api/chatroom/", require("./routes/chatroom"));
 
 app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "public", "index.html"));
@@ -108,13 +114,15 @@ app.set("port", port);
 var server = http.createServer(app);
 
 // create socket
-const io = require("socket.io")(server, {
-  cors: {
-    origin: process.env.CLIENT_BASE_URL,
-    methods: ["GET", "POST"],
-  },
-});
-initializeSocket(io);
+// const io = require("socket.io")(server, {
+//   cors: {
+//     origin: process.env.CLIENT_BASE_URL,
+//     methods: ["GET", "POST"],
+//   },
+// });
+// initializeSocket(io);
+io.attach(server);
+
 server.listen(port);
 server.on("error", onError);
 server.on("listening", onListening);
