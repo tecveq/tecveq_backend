@@ -217,25 +217,116 @@ exports.gradeAssignments = async (req, res, next) => {
       return res.status(403).send();
     }
 
-    // find submission in assignment and update only marks, feedback and grade
-    const updatedSubmissions = assignment.submissions.map((submission) => {
-      const newSubmission = submissions.find(
-        (s) => s.studentID.toString() == submission.studentID.toString()
-      );
+    // // find submission in assignment and update only marks, feedback and grade
+    // const updatedSubmissions = assignment.submissions.map((submission) => {
+    //   const newSubmission = submissions.find(
+    //     (s) => s.studentID.toString() == submission.studentID.toString()
+    //   );
 
-      if (newSubmission) {
-        submission.marks = newSubmission.marks;
-        submission.feedback = newSubmission.feedback
-          ? newSubmission.feedback
-          : "";
-        submission.grade = "A";
-      }
-      return submission;
-    });
+    //   if (newSubmission) {
+    //     submission.marks = newSubmission.marks;
+    //     submission.feedback = newSubmission.feedback
+    //       ? newSubmission.feedback
+    //       : "";
+    //     submission.grade = "A";
+    //   }
+    //   return submission;
+    // });
 
-    assignment.submissions = updatedSubmissions;
+    // assignment.submissions = updatedSubmissions;
+
+    assignment.submissions = submissions;
     await assignment.save();
     res.send(assignment);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getStudentAssignment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const studentID = req.user._id;
+    const assignment = await Assignment.findById(id);
+    if (!assignment) {
+      return res.status(404).send();
+    }
+    const submission = assignment.submissions.find(
+      (s) => s.studentID.toString() == studentID.toString()
+    );
+    if (!submission) {
+      return res.status(404).send();
+    }
+    res.send({ totalMarks: assignment.totalMarks, submission });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getAllAssignmentsOfStudent = async (req, res, next) => {
+  try {
+    const studentID = req.user._id;
+
+    // get all classrooms of student and then get all assignments of those classrooms
+    const classrooms = await Classroom.find({ students: studentID });
+    const classroomIDs = classrooms.map((c) => c._id);
+    const assignments = await Assignment.find({
+      classroomID: { $in: classroomIDs },
+    });
+
+    // check if user has submitted the assignment and add isSubmitted to each assignment
+    const assignmentsWithSubmission = assignments.map((assignment) => {
+      const submission = assignment.submissions.find(
+        (s) => s.studentID.toString() == studentID.toString()
+      );
+      if (submission) {
+        return { ...assignment._doc, isSubmitted: true };
+      }
+      return { ...assignment._doc, isSubmitted: false };
+    });
+
+    res.send(assignmentsWithSubmission);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getAssignmentForGrading = async (req, res, next) => {
+  try {
+    const teacherID = req.user._id;
+    const { assignmentID } = req.params;
+
+    // return all submission of assignment based on students in classroomID
+    const assignment = await Assignment.findOne({
+      _id: assignmentID,
+      createdBy: teacherID,
+    }).populate("submissions.studentID");
+    if (!assignment) {
+      return res.status(404).send();
+    }
+    const classroomID = assignment.classroomID;
+    const classroom = await Classroom.findById(classroomID).populate(
+      "students"
+    );
+    if (!classroom) {
+      return res.status(404).send();
+    }
+    const students = classroom.students;
+
+    // return all students of classroom and check if they have submitted the assignment
+    const submissions = students.map((studentID) => {
+      const submission = assignment.submissions.find(
+        (s) => s.studentID._id.toString() == studentID._id.toString()
+      );
+
+      if (submission) {
+        return { submission: { ...submission._doc }, studentID };
+      }
+      return { studentID };
+    });
+
+    // send assingment and submissions without submissions in assignment
+    res.send({ ...assignment._doc, submissions });
   } catch (error) {
     next(error);
   }

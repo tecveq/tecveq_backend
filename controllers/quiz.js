@@ -187,22 +187,24 @@ exports.gradeQuizes = async (req, res, next) => {
     }
 
     // find submission in quiz and update only marks, feedback and grade
-    const updatedSubmissions = quiz.submissions.map((submission) => {
-      const newSubmission = submissions.find(
-        (s) => s.studentID.toString() == submission.studentID.toString()
-      );
+    // const updatedSubmissions = quiz.submissions.map((submission) => {
+    //   const newSubmission = submissions.find(
+    //     (s) => s.studentID.toString() == submission.studentID.toString()
+    //   );
 
-      if (newSubmission) {
-        submission.marks = newSubmission.marks;
-        submission.feedback = newSubmission.feedback
-          ? newSubmission.feedback
-          : "";
-        submission.grade = "A";
-      }
-      return submission;
-    });
+    //   if (newSubmission) {
+    //     submission.marks = newSubmission.marks;
+    //     submission.feedback = newSubmission.feedback
+    //       ? newSubmission.feedback
+    //       : "";
+    //     submission.grade = "A";
+    //   }
+    //   return submission;
+    // });
 
-    quiz.submissions = updatedSubmissions;
+    // quiz.submissions = updatedSubmissions;
+
+    quiz.submissions = submissions;
     await quiz.save();
     res.send(quiz);
   } catch (error) {
@@ -249,6 +251,93 @@ exports.getQuizById = async (req, res, next) => {
       return res.status(404).send();
     }
     res.send(quiz);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getStudentQuiz = async (req, res, next) => {
+  const { id } = req.params;
+  const studentID = req.user._id;
+  try {
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).send();
+    }
+    const submission = quiz.submissions.find(
+      (sub) => sub.studentID.toString() == studentID.toString()
+    );
+    if (!submission) {
+      return res.status(404).send();
+    }
+    res.send({ totalMarks: quiz.totalMarks, submission });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getAllQuizzesOfStudent = async (req, res, next) => {
+  try {
+    const studentID = req.user._id;
+
+    // get all classrooms of student and then get all assignments of those classrooms
+    const classrooms = await Classroom.find({ students: studentID });
+    const classroomIDs = classrooms.map((c) => c._id);
+    const quizzes = await Quiz.find({
+      classroomID: { $in: classroomIDs },
+    });
+
+    // check if user has submitted the assignment and add isSubmitted to each assignment
+    const quizzesWithSubmission = quizzes.map((assignment) => {
+      const submission = assignment.submissions.find(
+        (s) => s.studentID.toString() == studentID.toString()
+      );
+      if (submission) {
+        return { ...assignment._doc, isSubmitted: true };
+      }
+      return { ...assignment._doc, isSubmitted: false };
+    });
+
+    res.send(quizzesWithSubmission);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getQuizForGrading = async (req, res, next) => {
+  try {
+    const teacherID = req.user._id;
+    const { quizID } = req.params;
+
+    // return all submission of assignment based on students in classroomID
+    const quiz = await Quiz.findOne({
+      _id: quizID,
+      createdBy: teacherID,
+    }).ppulate("submissions.studentID");
+    if (!quiz) {
+      return res.status(404).send();
+    }
+    const classroomID = quiz.classroomID;
+    const classroom = await Classroom.findById(classroomID).populate(
+      "students"
+    );
+    if (!classroom) {
+      return res.status(404).send();
+    }
+    const students = classroom.students;
+
+    // return all students of classroom and check if they have submitted the quiz
+    const submissions = students.map(async (studentID) => {
+      const submission = quiz.submissions.find(
+        (s) => s.studentID._id.toString() == studentID._id.toString()
+      );
+      if (submission) {
+        return { submission: { ...submission._doc }, studentID };
+      }
+      return { studentID };
+    });
+
+    res.send({ ...quiz._doc, submissions });
   } catch (error) {
     next(error);
   }

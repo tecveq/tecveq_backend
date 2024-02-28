@@ -19,6 +19,11 @@ exports.createClass = async (req, res, next) => {
     const startTime = new Date(data.startTime);
     const endTime = new Date(data.endTime);
 
+    // check if start time is on weekend
+    if (startTime.getDay() === 0 || startTime.getDay() === 6) {
+      return res.status(400).send("Class cannot hold on weekend");
+    }
+
     const teacherHasClass = await Class.findOne({
       "teacher.teacherID": teacher,
       $expr: {
@@ -170,6 +175,16 @@ exports.rescheduleClass = async (req, res, next) => {
     const startTime = new Date(data.startTime);
     const endTime = new Date(data.endTime);
 
+    // check if class start time has passed
+    if (startTime < new Date()) {
+      return res.status(400).send("Class start time has passed");
+    }
+
+    // check if start time is on weekend
+    if (startTime.getDay() === 0 || startTime.getDay() === 6) {
+      return res.status(400).send("Class cannot hold on weekend");
+    }
+
     const teacherHasClass = await Class.findOne({
       _id: { $ne: req.params.id },
       "teacher.teacherID": teacher,
@@ -315,10 +330,19 @@ exports.rescheduleClass = async (req, res, next) => {
 
 exports.cancelClass = async (req, res, next) => {
   try {
-    const classs = await Class.findByIdAndDelete(req.params.id);
+    // find class by id
+
+    const classs = await Class.findById(req.params.id);
     if (!classs) {
       return res.status(404).send("Class does not exist");
     }
+    // check if class start time has passed
+    if (classs.startTime < new Date()) {
+      return res.status(400).send("Class start time has passed");
+    }
+
+    // delete class
+    await classs.remove();
     return res.status(200).send(classs._doc);
   } catch (err) {
     next(err);
@@ -328,6 +352,11 @@ exports.cancelClass = async (req, res, next) => {
 exports.getClasses = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
+
+    // set end date to 1 week from start date
+    // let endDate = new Date(startDate);
+    // endDate.setDate(endDate.getDate() + 7);
+    // endDate = endDate.toISOString();
 
     const userRole = req.user.userType;
     const userId = req.user._id;
@@ -344,6 +373,31 @@ exports.getClasses = async (req, res, next) => {
       },
       {
         $unwind: "$classroom",
+      },
+      {
+        $unwind: "$classroom",
+      },
+      {
+        $lookup: {
+          from: "subjects",
+          localField: "subjectID",
+          foreignField: "_id",
+          as: "subjectID",
+        },
+      },
+      {
+        $unwind: "$subjectID",
+      },
+      {
+        $lookup: {
+          from: "users", // assuming "users" is the collection name for teachers
+          localField: "teacher.teacherID",
+          foreignField: "_id",
+          as: "teacher.teacherID",
+        },
+      },
+      {
+        $unwind: "$teacher.teacherID",
       },
       {
         $match: {

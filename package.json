@@ -17,6 +17,7 @@
     "dotenv": "^16.0.3",
     "express": "~4.16.1",
     "express-session": "^1.17.3",
+    "google-auth-library": "^9.6.3",
     "googleapis": "^126.0.1",
     "http-errors": "~1.6.3",
     "jade": "~1.11.0",
@@ -24,11 +25,12 @@
     "mongoose": "^5.12.5",
     "morgan": "~1.9.1",
     "multer": "*",
+    "node-cron": "^3.0.3",
     "nodemon": "^2.0.22",
     "passport": "^0.6.0",
     "passport-local": "^1.0.0",
     "passport-local-mongoose": "^7.1.2",
-    "socket.io": "^4.1.2"
+    "socket.io": "^4.7.4"
   },
   "keywords": [],
   "author": "",

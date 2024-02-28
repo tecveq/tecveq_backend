@@ -50,4 +50,7 @@ userRouter.get(
   controller.getStudentGradesForSubject
 );
 
+// get teachers for admin
+userRouter.get("/admin/teachers", controller.getTeachersForAdmin);
+
 module.exports = userRouter;

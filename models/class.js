@@ -43,6 +43,9 @@ const classSchema = new mongoose.Schema({
       enum: ["present", "absent", "leave"],
     },
   },
+  meetLink: {
+    type: String,
+  },
   attendance: [
     {
       studentID: {

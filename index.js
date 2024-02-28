@@ -11,6 +11,7 @@ const cors = require("cors");
 const passport = require("passport"); // authentication
 const { initializingPassport } = require("./passportConfig");
 const MongoStore = require("connect-mongo");
+const { initializeSocket } = require("./utils/socket");
 
 const userRouter = require("./routes/user");
 
@@ -106,6 +107,14 @@ app.set("port", port);
 
 var server = http.createServer(app);
 
+// create socket
+const io = require("socket.io")(server, {
+  cors: {
+    origin: process.env.CLIENT_BASE_URL,
+    methods: ["GET", "POST"],
+  },
+});
+initializeSocket(io);
 server.listen(port);
 server.on("error", onError);
 server.on("listening", onListening);

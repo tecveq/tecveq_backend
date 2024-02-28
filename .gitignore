@@ -27,3 +27,6 @@ changes.txt
 
 # Local Netlify folder
 .netlify
+
+
+/secrets

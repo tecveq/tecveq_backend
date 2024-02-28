@@ -26,5 +26,14 @@ assignmentRouter.get("/:id", assignmentController.getAssignmentById);
 assignmentRouter.post("/submit/:id", assignmentController.submitAssignment);
 //grade assignments
 assignmentRouter.post("/grade/:id", assignmentController.gradeAssignments);
+// get assignment of student
+assignmentRouter.get("/single/:id", assignmentController.getAssignmentById);
+// get all assignments of student
+assignmentRouter.get("/all", assignmentController.getAllAssignmentsOfStudent);
+// get assignment for grading
+assignmentRouter.get(
+  "/submissions/:assignmentID",
+  assignmentController.getAssignmentForGrading
+);
 
 module.exports = assignmentRouter;

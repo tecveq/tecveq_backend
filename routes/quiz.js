@@ -20,5 +20,12 @@ quizRouter.get("/:id", quizController.getQuizById);
 quizRouter.post("/submit/:id", quizController.submitQuiz);
 //grade quizes
 quizRouter.post("/grade/:id", quizController.gradeQuizes);
+// get quiz of student
+quizRouter.get("/single/:id", quizController.getQuizById);
+// get all quizes of student
+quizRouter.get("/all", quizController.getAllQuizzesOfStudent);
+
+// get quiz for grading
+quizRouter.get("/submissions/:quizID", quizController.getQuizForGrading);
 
 module.exports = quizRouter;

@@ -345,15 +345,18 @@ exports.getStudentSubjects = async (req, res, next) => {
 
     const student = await User.findById(studentID);
 
-    const classrooms = await Classroom.find({ students: student._id }).populate(
-      "teachers.subject"
-    );
+    const classrooms = await Classroom.find({ students: student._id })
+      .populate("teachers.subject")
+      .populate("teachers.teacher");
 
     const subjects = classrooms.reduce((result, classroom) => {
       if (classroom.teachers && classroom.teachers.length > 0) {
         classroom.teachers.forEach((teacher) => {
           if (teacher.subject) {
-            result.push(teacher.subject);
+            result.push({
+              subject: teacher.subject,
+              teacher: teacher.teacher.name,
+            });
           }
         });
       }
@@ -591,6 +594,138 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
             : "F",
       },
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getTeachersForAdmin = async (req, res, next) => {
+  try {
+    const teachers = await User.find({ userType: "teacher" });
+    const classrooms = await Classroom.find({})
+      .populate("teachers.subject")
+      .populate("teachers.teacher");
+
+    // get all assignments and quizes of the teacher
+    let assignments = await Assignment.find({
+      createdBy: { $in: teachers.map((tea) => tea._id) },
+      submissions: { $elemMatch: { marks: { $exists: true } } },
+    });
+    let quizes = await Quiz.find({
+      createdBy: { $in: teachers.map((tea) => tea._id) },
+      submissions: { $elemMatch: { marks: { $exists: true } } },
+    });
+
+    quizes = quizes.map((ass) => {
+      const marks =
+        (ass.submissions.reduce((total, sub) => {
+          return total + sub.marks;
+        }, 0) /
+          ass.totalMarks /
+          ass.submissions.length) *
+        100;
+
+      return {
+        ...ass._doc,
+        average: {
+          percentage: marks,
+          grade: marks > 90 ? "A" : "B",
+        },
+      };
+    });
+
+    assignments = assignments.map((ass) => {
+      const marks =
+        (ass.submissions.reduce((total, sub) => {
+          return total + sub.marks;
+        }, 0) /
+          ass.totalMarks /
+          ass.submissions.length) *
+        100;
+
+      return {
+        ...ass._doc,
+        average: {
+          percentage: marks,
+          grade: marks > 90 ? "A" : "B",
+        },
+      };
+    });
+
+    // push all assignments and quize to specific teacher in teachers in classroom
+    const teachersInClassroom = classrooms.reduce((result, classroom) => {
+      classroom.teachers.forEach((teacher) => {
+        if (!result[teacher.teacher._id]) {
+          result[teacher.teacher._id] = [];
+        }
+        let ass = assignments.filter((a) => {
+          return (
+            a.createdBy.toString() == teacher.teacher._id.toString() &&
+            a.classroomID.toString() == classroom._id.toString()
+          );
+        });
+
+        let ass2 =
+          ass.reduce((total, asi) => {
+            return total + asi.average.percentage;
+          }, 0) / ass.length;
+
+        let qui = quizes.filter((a) => {
+          return (
+            a.createdBy.toString() == teacher.teacher._id.toString() &&
+            a.classroomID.toString() == classroom._id.toString()
+          );
+        });
+
+        let qui2 =
+          qui.reduce((total, asi) => {
+            return total + asi.average.percentage;
+          }, 0) / qui.length;
+
+        result[teacher.teacher._id].push({
+          assignments: {
+            count: ass.length,
+            percentage: ass2,
+            grade: ass2 > 90 ? "A" : "B",
+          },
+          quizes: {
+            count: qui.length,
+            percentage: qui2,
+            grade: qui2 > 90 ? "A" : "B",
+          },
+          subject: teacher.subject,
+          teacher: teacher.teacher,
+        });
+      });
+      return result;
+    }, {});
+
+    return res.send(teachersInClassroom);
+
+    // group assignments by createdBy and classroomID
+    // const groupedAssignments = assignments.reduce((result, assignment) => {
+    //   if (!result[assignment.createdBy]) {
+    //     result[assignment.createdBy] = {};
+    //   }
+    //   if (!result[assignment.createdBy][assignment.classroomID]) {
+    //     result[assignment.createdBy][assignment.classroomID] = [];
+    //   }
+    //   result[assignment.createdBy][assignment.classroomID].push(assignment);
+    //   return result;
+    // }, {});
+    // // group quizes by createdBy and classroomID
+    // const groupedQuizes = quizes.reduce((result, quiz) => {
+    //   if (!result[quiz.createdBy]) {
+    //     result[quiz.createdBy] = {};
+    //   }
+    //   if (!result[quiz.createdBy][quiz.classroomID]) {
+    //     result[quiz.createdBy][quiz.classroomID] = [];
+    //   }
+    //   result[quiz.createdBy][quiz.classroomID].push(quiz);
+    //   return result;
+    // }, {});
+
+    // res.send({ groupedAssignments, groupedQuizes });
   } catch (err) {
     next(err);
   }
