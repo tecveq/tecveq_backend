@@ -56,6 +56,21 @@ exports.register = async (req, res, next) => {
 
     await user.save();
 
+    if (data.userType == "student") {
+      // check if the parent already exists
+      const parent = await User.findOne({ email: data.guardianEmail });
+
+      if (!parent) {
+        const parentAccount = new User({
+          name: data.guardianName,
+          email: data.guardianEmail,
+          password: bcrypt.hashSync("123456", 8),
+          userType: "parent",
+          phoneNumber: data.guardianPhoneNumber,
+        });
+        await parentAccount.save();
+      }
+    }
     res.send({ ...user._doc, password: undefined });
   } catch (err) {
     next(err);
@@ -100,6 +115,7 @@ exports.updateUser = async (req, res, next) => {
 };
 
 exports.getUsersNotInClassroom = async (req, res, next) => {
+  console.log(req.user);
   try {
     const { levelID } = req.params;
 

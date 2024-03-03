@@ -3,7 +3,6 @@ const mongoose = require("mongoose");
 const chatroomSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
   },
   participants: [
     {
@@ -14,7 +13,6 @@ const chatroomSchema = new mongoose.Schema({
   classroomID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Classroom",
-    required: true,
   },
   messages: [
     {

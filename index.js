@@ -29,6 +29,7 @@ const notificationRouter = require("./routes/notification");
 const feedbackRouter = require("./routes/feedback");
 const quizRouter = require("./routes/quiz");
 const { io } = require("./utils/socket");
+const { isStudentChild } = require("./middlewares/isStudentChild");
 
 var app = express();
 
@@ -78,6 +79,7 @@ app.use("/api/quiz/", quizRouter);
 app.use("/api/notification/", notificationRouter);
 app.use("/api/feedback/", feedbackRouter);
 app.use("/api/chatroom/", require("./routes/chatroom"));
+app.use("/api/parent", require("./routes/parent"));
 
 app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "public", "index.html"));

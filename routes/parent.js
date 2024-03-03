@@ -1,0 +1,17 @@
+const parentController = require("../controllers/parent");
+const { isStudentChild } = require("../middlewares/isStudentChild");
+const parentRouter = require("express").Router();
+
+// get student report for parent
+parentRouter.get(
+  "/student-report/:studentID",
+  isStudentChild,
+  parentController.getStudentReportForParent
+);
+parentRouter.get(
+  "/chats/:studentID",
+  isStudentChild,
+  parentController.getParentChats
+);
+
+module.exports = parentRouter;

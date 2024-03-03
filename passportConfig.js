@@ -9,14 +9,34 @@ exports.initializingPassport = (passport) => {
       {
         usernameField: "email",
         passwordField: "password",
+        passReqToCallback: true, // Pass the entire request object to the callback
       },
-      async (email, password, done) => {
+      async (req, email, password, done) => {
         try {
           const foundUser = await User.findOne({ email: email });
-          console.log(foundUser);
           if (!foundUser) {
             return done(null, false, { message: "User does not exist" });
           } else {
+            if (foundUser.userType === "parent") {
+              if (!req.body.currentStudentID) {
+                return done(null, false, {
+                  message: "Please provide the current student ID",
+                });
+              }
+              // check if student has guardian with the email provided
+              const student = await User.findOne({
+                _id: req.body.currentStudentID,
+                guardianEmail: email,
+              });
+              if (!student) {
+                return done(null, false, { message: "Student does not exist" });
+              }
+
+              return done(null, {
+                ...foundUser._doc,
+                studentID: req.body.currentStudentID,
+              });
+            }
             const validPass = await bcrypt.compare(
               password,
               foundUser.password
