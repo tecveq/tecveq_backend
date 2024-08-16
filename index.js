@@ -84,9 +84,9 @@ app.use("/api/feedback/", checkLoggedIn, feedbackRouter);
 app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
 app.use("/api/parent", require("./routes/parent"));
 
-app.get("*", (req, res) => {
+app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
-  res.send({
+  return res.send({
     success: true,
     count: 1,
     message: "Backend live on AWS!"
@@ -118,8 +118,9 @@ mongoose.connect(db, (err) => {
   }
 });
 
-var port = normalizePort(process.env.PORT || "3001");
-app.set("port", port);
+// var port = 443;
+// var port = normalizePort(process.env.PORT || "3001");
+// app.set("port", port);
 
 // production
 const sslOptions = {
