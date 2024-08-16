@@ -3,6 +3,7 @@ const Classroom = require("../models/classroom");
 const Class = require("../models/class");
 const mongoose = require("mongoose");
 const moment = require("moment");
+const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
 
 exports.createClass = async (req, res, next) => {
   try {
@@ -154,8 +155,25 @@ exports.createClass = async (req, res, next) => {
       return res.status(400).send("Students already have a class at this time");
     }
 
-    const classs = new Class({ ...data, createdBy: req.user._id });
+    
+    let authClient = await authorize();
+    let meetlink = await createSpace(authClient);
+    console.log("meeting link data is : ", meetlink);
+    let participants = [];
+
+
+
+    // setTimeout(async () => {
+    //   participants = await getMeetingParticipents(authClient, meetlink);
+    //   for await (const response of participants) {
+    //     console.log(response);
+    //   }
+    //   console.log("participants are : ", participants);
+    // }, 10000);
+
+    const classs = new Class({ ...data, createdBy: req.user._id, meetLink: meetlink.meetingUri });
     await classs.save();
+
     return res.status(201).send(classs._doc);
   } catch (err) {
     next(err);

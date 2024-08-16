@@ -75,7 +75,7 @@ app.use("/api/user/", checkLoggedIn, userRouter);
 app.use("/api/classroom/", checkLoggedIn, classoomRouter);
 app.use("/api/announcement/", checkLoggedIn, announcementRouter);
 app.use("/api/subject/", checkLoggedIn, subjectRouter);
-app.use("/api/level/", checkLoggedIn, levelRouter);
+app.use("/api/level/", levelRouter);
 app.use("/api/class/", checkLoggedIn, classRouter);
 app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
 app.use("/api/quiz/", checkLoggedIn, quizRouter);
@@ -117,7 +117,7 @@ app.use(function (err, req, res, next) {
 });
 
 const db = process.env.MONGO_CONNECTION;
-mongoose.connect(db, (err) => {
+mongoose.connect(db,  { useNewUrlParser: true, useUnifiedTopology: true }, (err) => {
   if (err) {
     console.log(err);
   } else {

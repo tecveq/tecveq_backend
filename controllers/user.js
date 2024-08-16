@@ -405,23 +405,23 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
           as: "quizzes",
         },
       },
-      {
-        $unwind: "$assignments",
-      },
-      {
-        $unwind: "$quizzes",
-      },
-      {
-        $match: {
-          "assignments.submissions.studentID":
-            mongoose.Types.ObjectId(studentID),
-          "assignments.submissions.marks": { $exists: true, $ne: null },
-          "assignments.subjectID": mongoose.Types.ObjectId(subjectID),
-          "quizzes.submissions.studentID": mongoose.Types.ObjectId(studentID),
-          "quizzes.submissions.marks": { $exists: true, $ne: null },
-          "quizzes.subjectID": mongoose.Types.ObjectId(subjectID),
-        },
-      },
+      // {
+      //   $unwind: "$assignments",
+      // },
+      // {
+      //   $unwind: "$quizzes",
+      // },
+      // {
+      //   $match: {
+      //     "assignments.submissions.studentID":
+      //       mongoose.Types.ObjectId(studentID),
+      //     "assignments.submissions.marks": { $exists: true, $ne: null },
+      //     "assignments.subjectID": mongoose.Types.ObjectId(subjectID),
+      //     "quizzes.submissions.studentID": mongoose.Types.ObjectId(studentID),
+      //     "quizzes.submissions.marks": { $exists: true, $ne: null },
+      //     "quizzes.subjectID": mongoose.Types.ObjectId(subjectID),
+      //   },
+      // },
       {
         $group: {
           _id: null,

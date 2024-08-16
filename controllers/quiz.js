@@ -313,7 +313,7 @@ exports.getQuizForGrading = async (req, res, next) => {
     const quiz = await Quiz.findOne({
       _id: quizID,
       createdBy: teacherID,
-    }).ppulate("submissions.studentID");
+    }).populate("submissions.studentID");
     if (!quiz) {
       return res.status(404).send();
     }
