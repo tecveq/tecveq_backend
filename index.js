@@ -93,6 +93,13 @@ app.get("/", (req, res) => {
   })
 });
 
+app.get("/developer", (req, res) => {
+  // res.sendFile(path.resolve(__dirname, "public", "index.html"));
+  return res.send({
+    developers: ["Mustafa", "Muneeb", "Hassan"]
+  })
+});
+
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
@@ -124,8 +131,8 @@ mongoose.connect(db, (err) => {
 
 // production
 const sslOptions = {
-  key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem")
+  key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey1.pem"),
+  cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain1.pem")
 }
 /////////////////////////// Production
 
