@@ -16,7 +16,8 @@ const assignmentSchema = new mongoose.Schema(
     },
     files: [
       {
-        type: String,
+        name: String,
+        url: String,
       },
     ],
     createdBy: {

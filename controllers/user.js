@@ -5,7 +5,9 @@ const Class = require("../models/class");
 const bcrypt = require("bcryptjs");
 const Assignment = require("../models/assignment");
 const Quiz = require("../models/quiz");
+const Device = require("../models/devices");
 const mongoose = require("mongoose");
+const Activity = require("../models/activities");
 
 exports.register = async (req, res, next) => {
   try {
@@ -93,9 +95,13 @@ exports.login = (req, res, next) => {
   })(req, res, next);
 };
 
-exports.logout = (req, res) => {
+exports.logout = (req, res, next) => {
   try {
-    req.logout();
+    req.logout((err) => {
+      if (err) {
+        next(err);
+      }
+    });
     res.send("Logged out");
   } catch (err) {
     next(err);
@@ -104,6 +110,16 @@ exports.logout = (req, res) => {
 
 exports.updateUser = async (req, res, next) => {
   try {
+    if (req.body.email) {
+      // email is not allowed to be updated
+      delete req.body.email;
+    }
+
+    if (req.body.guardianEmail) {
+      // guardian email is not allowed to be updated
+      delete req.body.guardianEmail;
+    }
+
     const user = await User.findByIdAndUpdate(req.user._id, req.body, {
       new: true,
     });
@@ -178,12 +194,13 @@ exports.getUsers = async (req, res, next) => {
 exports.acceptUser = async (req, res, next) => {
   try {
     const { userID } = req.params;
+    console.log(userID);
     const user = await User.findByIdAndUpdate(
       userID,
       { isAccepted: true },
       { new: true }
     );
-    res.send(user._doc);
+    res.send(user?._doc);
   } catch (error) {
     next(error);
   }
@@ -201,7 +218,7 @@ exports.rejectUser = async (req, res, next) => {
 
 exports.getStudentsOfTeacher = async (req, res, next) => {
   try {
-    const { classroomID, subjectID } = req.query;
+    // const { classroomID, subjectID } = req.query;
 
     const teacherID = req.user._id;
 
@@ -209,10 +226,10 @@ exports.getStudentsOfTeacher = async (req, res, next) => {
       teachers: {
         $elemMatch: {
           teacher: teacherID,
-          ...(subjectID && { subject: subjectID }),
+          // ...(subjectID && { subject: subjectID }),
         },
       },
-      ...(classroomID && { _id: classroomID }),
+      // ...(classroomID && { _id: classroomID }),
     })
       .populate("students")
       .populate("teachers.subject");
@@ -220,9 +237,9 @@ exports.getStudentsOfTeacher = async (req, res, next) => {
     const students = [];
 
     // finding classes for attendance
-    const classes = await Class.find({
-      classroomID: { $in: classrooms.map((clas) => clas._id) },
-    }).populate("students");
+    // const classes = await Class.find({
+    //   classroomID: { $in: classrooms.map((clas) => clas._id) },
+    // }).populate("students");
 
     classrooms.map((clas) => {
       const found = clas.teachers.find(
@@ -339,6 +356,9 @@ exports.getStudentReportForTeacher = async (req, res, next) => {
           marksObtained: ass.submissions.find(
             (sub) => sub.studentID.toString() == studentID
           ).marks,
+          feedback: ass.submissions.find(
+            (sub) => sub.studentID.toString() == studentID
+          ).feedback,
         };
       }),
       quizes: quizes.map((ass) => {
@@ -347,41 +367,14 @@ exports.getStudentReportForTeacher = async (req, res, next) => {
           marksObtained: ass.submissions.find(
             (sub) => sub.studentID.toString() == studentID
           ).marks,
+          feedback: ass.submissions.find(
+            (sub) => sub.studentID.toString() == studentID
+          ).feedback,
         };
       }),
     });
   } catch (error) {
     next(error);
-  }
-};
-
-exports.getStudentSubjects = async (req, res, next) => {
-  try {
-    const { studentID } = req.params;
-
-    const student = await User.findById(studentID);
-
-    const classrooms = await Classroom.find({ students: student._id })
-      .populate("teachers.subject")
-      .populate("teachers.teacher");
-
-    const subjects = classrooms.reduce((result, classroom) => {
-      if (classroom.teachers && classroom.teachers.length > 0) {
-        classroom.teachers.forEach((teacher) => {
-          if (teacher.subject) {
-            result.push({
-              subject: teacher.subject,
-              teacher: teacher.teacher.name,
-            });
-          }
-        });
-      }
-      return result;
-    }, []);
-
-    res.send(subjects);
-  } catch (err) {
-    next(err);
   }
 };
 
@@ -615,6 +608,36 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
   }
 };
 
+exports.getStudentSubjects = async (req, res, next) => {
+  try {
+    const { studentID } = req.params;
+
+    const student = await User.findById(studentID);
+
+    const classrooms = await Classroom.find({ students: student._id })
+      .populate("teachers.subject")
+      .populate("teachers.teacher");
+
+    const subjects = classrooms.reduce((result, classroom) => {
+      if (classroom.teachers && classroom.teachers.length > 0) {
+        classroom.teachers.forEach((teacher) => {
+          if (teacher.subject) {
+            result.push({
+              subject: teacher.subject,
+              teacher: teacher.teacher.name,
+            });
+          }
+        });
+      }
+      return result;
+    }, []);
+
+    res.send(subjects);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getTeachersForAdmin = async (req, res, next) => {
   try {
     const teachers = await User.find({ userType: "teacher" });
@@ -749,53 +772,377 @@ exports.getTeachersForAdmin = async (req, res, next) => {
 
 // fazool function he yeh
 exports.getStudentReportsForAdmin = async (req, res, next) => {
-  const { studentID } = req.params;
+  try {
+    const { studentID } = req.params;
 
-  const student = await User.findById(studentID);
+    const student = await User.findById(studentID);
 
-  // get all classrooms of student
+    if (!student) {
+      return res.status(404).send("Student not found");
+    }
 
-  const classroomsWithAssignmentsAndQuizes = await Classroom.aggregate([
-    {
-      $match: {
-        students: mongoose.Types.ObjectId(studentID),
-      },
-    },
-    {
-      $lookup: {
-        from: "assignments", // Assuming the name of the assignments collection is "assignments"
-        localField: "_id",
-        foreignField: "classroomID",
-        as: "assignments",
-      },
-    },
-    {
-      $lookup: {
-        from: "quizzes", // Assuming the name of the quizzes collection is "quizzes"
-        localField: "_id",
-        foreignField: "classroomID",
-        as: "quizzes",
-      },
-    },
-    {
-      $addFields: {
-        assignments: {
-          $filter: {
-            input: "$assignments",
-            as: "assignment",
-            cond: { $ifNull: ["$$assignment.submissions.marks", false] },
-          },
-        },
-        quizzes: {
-          $filter: {
-            input: "$quizzes",
-            as: "quiz",
-            cond: { $ifNull: ["$$quiz.submissions.marks", false] },
-          },
+    // get all classrooms of student
+
+    const classroomsWithAssignmentsAndQuizes = await Classroom.aggregate([
+      {
+        $match: {
+          students: mongoose.Types.ObjectId(studentID),
         },
       },
-    },
-  ]);
+      {
+        $lookup: {
+          from: "assignments", // Assuming the name of the assignments collection is "assignments"
+          localField: "_id",
+          foreignField: "classroomID",
+          as: "assignments",
+        },
+      },
+      {
+        $lookup: {
+          from: "quizzes", // Assuming the name of the quizzes collection is "quizzes"
+          localField: "_id",
+          foreignField: "classroomID",
+          as: "quizzes",
+        },
+      },
 
-  res.send(classroomsWithAssignmentsAndQuizes);
+      {
+        $addFields: {
+          assignments: {
+            $filter: {
+              input: "$assignments",
+              as: "assignment",
+              cond: { $ifNull: ["$$assignment.submissions.marks", false] },
+            },
+          },
+          quizzes: {
+            $filter: {
+              input: "$quizzes",
+              as: "quiz",
+              cond: { $ifNull: ["$$quiz.submissions.marks", false] },
+            },
+          },
+        },
+      },
+    ]);
+
+    // get activities of student
+    const activities = await Activity.find({ userID: studentID });
+
+    return res.send({ classroomsWithAssignmentsAndQuizes, activities });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// update user by admin
+exports.updateUserByAdmin = async (req, res, next) => {
+  try {
+    const { userID } = req.params;
+    const user = await User.findByIdAndUpdate(userID, req.body, {
+      new: true,
+    });
+    res.send(user);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// delete user by admin
+exports.deleteUserByAdmin = async (req, res, next) => {
+  try {
+    const { userID } = req.params;
+    const user = await User.findByIdAndDelete(userID);
+    res.send(user);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// subscribe to notifications
+exports.subscribeToNotifications = async (req, res, next) => {
+  try {
+    const currUser = req.user;
+    const { fcmToken } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).send("fcmToken is required");
+    }
+
+    const foundDevice = await Device.findOne({
+      userID: currUser._id,
+      fcmToken,
+    });
+
+    if (foundDevice) {
+      return res.status(200).send(foundDevice);
+    }
+
+    const device = new Device({ fcmToken, userID: currUser._id });
+
+    await device.save();
+
+    return res.status(200).send(device);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getStudentSubjectsForStudent = async (req, res, next) => {
+  try {
+    const studentID = req.user._id;
+
+    const classrooms = await Classroom.find({ students: studentID })
+      .populate("teachers.subject")
+      .populate("teachers.teacher");
+
+    const subjects = classrooms.reduce((result, classroom) => {
+      if (classroom.teachers && classroom.teachers.length > 0) {
+        classroom.teachers.forEach((teacher) => {
+          if (teacher.subject) {
+            result.push({
+              subject: teacher.subject,
+              teacher: teacher.teacher.name,
+            });
+          }
+        });
+      }
+      return result;
+    }, []);
+
+    res.send(subjects);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
+  try {
+    // get subjectID from params
+    const { subjectID } = req.params;
+    const studentID = req.user._id;
+
+    const userAssignmentsAndQuizzes = await Classroom.aggregate([
+      {
+        $match: {
+          students: mongoose.Types.ObjectId(studentID),
+        },
+      },
+      {
+        $lookup: {
+          from: "assignments",
+          localField: "_id",
+          foreignField: "classroomID",
+          as: "assignments",
+        },
+      },
+      {
+        $lookup: {
+          from: "quizzes",
+          localField: "_id",
+          foreignField: "classroomID",
+          as: "quizzes",
+        },
+      },
+      {
+        $unwind: "$assignments",
+      },
+      {
+        $unwind: "$quizzes",
+      },
+      {
+        $match: {
+          "assignments.submissions.studentID":
+            mongoose.Types.ObjectId(studentID),
+          "assignments.submissions.marks": { $exists: true, $ne: null },
+          "assignments.subjectID": mongoose.Types.ObjectId(subjectID),
+          "quizzes.submissions.studentID": mongoose.Types.ObjectId(studentID),
+          "quizzes.submissions.marks": { $exists: true, $ne: null },
+          "quizzes.subjectID": mongoose.Types.ObjectId(subjectID),
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          assignments: {
+            $addToSet: {
+              _id: "$assignments._id",
+              totalMarks: "$assignments.totalMarks",
+              obtainedMarks: {
+                $arrayElemAt: [
+                  {
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: "$assignments.submissions",
+                          as: "submission",
+                          cond: {
+                            $eq: [
+                              "$$submission.studentID",
+                              mongoose.Types.ObjectId(studentID),
+                            ],
+                          },
+                        },
+                      },
+                      as: "submission",
+                      in: "$$submission.marks",
+                    },
+                  },
+                  0,
+                ],
+              },
+              grade: {
+                $arrayElemAt: [
+                  {
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: "$assignments.submissions",
+                          as: "submission",
+                          cond: {
+                            $eq: [
+                              "$$submission.studentID",
+                              mongoose.Types.ObjectId(studentID),
+                            ],
+                          },
+                        },
+                      },
+                      as: "submission",
+                      in: "$$submission.grade",
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
+          },
+          quizzes: {
+            $addToSet: {
+              _id: "$quizzes._id",
+              totalMarks: "$quizzes.totalMarks",
+              obtainedMarks: {
+                $arrayElemAt: [
+                  {
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: "$quizzes.submissions",
+                          as: "submission",
+                          cond: {
+                            $eq: [
+                              "$$submission.studentID",
+                              mongoose.Types.ObjectId(studentID),
+                            ],
+                          },
+                        },
+                      },
+                      as: "submission",
+                      in: "$$submission.marks",
+                    },
+                  },
+                  0,
+                ],
+              },
+              grade: {
+                $arrayElemAt: [
+                  {
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: "$quizzes.submissions",
+                          as: "submission",
+                          cond: {
+                            $eq: [
+                              "$$submission.studentID",
+                              mongoose.Types.ObjectId(studentID),
+                            ],
+                          },
+                        },
+                      },
+                      as: "submission",
+                      in: "$$submission.grade",
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          assignments: 1,
+          quizzes: 1,
+        },
+      },
+    ]);
+
+    let avgQuizMarksPer = 0;
+    let avgAssMarksPer = 0;
+    if (userAssignmentsAndQuizzes.length > 0) {
+      if (userAssignmentsAndQuizzes[0].quizzes.length > 0)
+        avgQuizMarksPer =
+          (userAssignmentsAndQuizzes[0].quizzes.reduce(
+            (total, assignment) => total + assignment.obtainedMarks,
+            0
+          ) /
+            userAssignmentsAndQuizzes[0].quizzes.reduce(
+              (total, assignment) => total + assignment.totalMarks,
+              0
+            )) *
+          100;
+      if (userAssignmentsAndQuizzes[0].assignments.length > 0)
+        avgAssMarksPer =
+          (userAssignmentsAndQuizzes[0].assignments.reduce(
+            (total, assignment) => total + assignment.obtainedMarks,
+            0
+          ) /
+            userAssignmentsAndQuizzes[0].assignments.reduce(
+              (total, assignment) => total + assignment.totalMarks,
+              0
+            )) *
+          100;
+    }
+
+    res.send({
+      quizes: {
+        data:
+          userAssignmentsAndQuizzes.length > 0
+            ? userAssignmentsAndQuizzes[0].quizzes
+            : [],
+        avgMarksPer: avgQuizMarksPer.toFixed(0),
+        avgGrade:
+          avgQuizMarksPer > 90
+            ? "A"
+            : avgQuizMarksPer > 80
+            ? "B"
+            : avgQuizMarksPer > 70
+            ? "C"
+            : avgQuizMarksPer > 60
+            ? "D"
+            : "F",
+      },
+      assignments: {
+        data:
+          userAssignmentsAndQuizzes.length > 0
+            ? userAssignmentsAndQuizzes[0].assignments
+            : [],
+        avgMarksPer: avgAssMarksPer.toFixed(0),
+        avgGrade:
+          avgAssMarksPer > 90
+            ? "A"
+            : avgAssMarksPer > 80
+            ? "B"
+            : avgAssMarksPer > 70
+            ? "C"
+            : avgAssMarksPer > 60
+            ? "D"
+            : "F",
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 };

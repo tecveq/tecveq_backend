@@ -7,18 +7,23 @@ assignmentRouter.put("/:id", assignmentController.editAssignment);
 assignmentRouter.delete("/:id", assignmentController.deleteAssignment);
 //get assignments of classroom
 assignmentRouter.get(
-  "/:classroomID",
+  "/all/classroom/:classroomID",
   assignmentController.getAssignmentsOfClassroom
 );
 //get assignments of classroom of teacher
 assignmentRouter.get(
-  "/teacher/:classroomID",
+  "/all/teacher/classroom/:classroomID",
   assignmentController.getAssignmentsOfClassroomOfTeacher
 );
 //get all assignments of teacher
 assignmentRouter.get(
-  "/teacher",
+  "/all/teacher",
   assignmentController.getAllAssignmentsOfTeacher
+);
+// get all assignments of student
+assignmentRouter.get(
+  "/all/student",
+  assignmentController.getAllAssignmentsOfStudent
 );
 //get assignment by id
 assignmentRouter.get("/:id", assignmentController.getAssignmentById);
@@ -28,8 +33,7 @@ assignmentRouter.post("/submit/:id", assignmentController.submitAssignment);
 assignmentRouter.post("/grade/:id", assignmentController.gradeAssignments);
 // get assignment of student
 assignmentRouter.get("/single/:id", assignmentController.getAssignmentById);
-// get all assignments of student
-assignmentRouter.get("/all", assignmentController.getAllAssignmentsOfStudent);
+
 // get assignment for grading
 assignmentRouter.get(
   "/submissions/:assignmentID",

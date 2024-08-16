@@ -15,7 +15,8 @@ const quizSchema = new mongoose.Schema({
   },
   files: [
     {
-      type: String,
+      name: String,
+      url: String,
     },
   ],
   canSubmitAfterTime: {

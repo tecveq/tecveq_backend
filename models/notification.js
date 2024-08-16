@@ -1,18 +1,21 @@
 const mongoose = require("mongoose");
 
 const notificationSchema = new mongoose.Schema({
-  sentBy: {
+  userID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
-  },
-  title: {
-    type: String,
     required: true,
   },
   message: {
     type: String,
     required: true,
+  },
+  url: {
+    type: String,
+  },
+  file: {
+    name: String,
+    url: String,
   },
   createdAt: {
     type: Date,

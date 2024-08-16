@@ -15,9 +15,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  profilePic: {
+    type: String,
+  },
+  bio: {
+    type: String,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  dob: {
+    type: Date,
   },
   userType: {
     type: String,
@@ -37,6 +46,9 @@ const userSchema = new mongoose.Schema({
     type: String,
   },
   guardianPhoneNumber: {
+    type: String,
+  },
+  experience: {
     type: String,
   },
   qualification: {

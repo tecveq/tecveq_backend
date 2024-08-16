@@ -10,7 +10,7 @@ exports.createMeeting = async () => {
       JSON.parse(credentials).web;
     oauth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[0]);
 
-    // Check if we have previously stored a token.
+    // Check if we have previously stored a token..
 
     const token = fs.readFileSync("./secrets/token.json");
     oauth2Client.setCredentials(JSON.parse(token));

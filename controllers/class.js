@@ -2,6 +2,7 @@ const Subject = require("../models/subject");
 const Classroom = require("../models/classroom");
 const Class = require("../models/class");
 const mongoose = require("mongoose");
+const moment = require("moment");
 
 exports.createClass = async (req, res, next) => {
   try {
@@ -18,7 +19,6 @@ exports.createClass = async (req, res, next) => {
     const teacher = data.teacher.teacherID;
     const startTime = new Date(data.startTime);
     const endTime = new Date(data.endTime);
-
     // check if start time is on weekend
     if (startTime.getDay() === 0 || startTime.getDay() === 6) {
       return res.status(400).send("Class cannot hold on weekend");
@@ -140,8 +140,8 @@ exports.createClass = async (req, res, next) => {
               },
               else: {
                 $and: [
-                  { $lt: ["$startTime", "$endTime"] },
-                  { $gt: ["$endTime", "$startTime"] },
+                  { $lt: ["$startTime", endTime] },
+                  { $gt: ["$endTime", startTime] },
                 ],
               },
             },
@@ -303,8 +303,8 @@ exports.rescheduleClass = async (req, res, next) => {
               },
               else: {
                 $and: [
-                  { $lt: ["$startTime", "$endTime"] },
-                  { $gt: ["$endTime", "$startTime"] },
+                  { $lt: ["$startTime", endTime] },
+                  { $gt: ["$endTime", startTime] },
                 ],
               },
             },
@@ -357,11 +357,16 @@ exports.getClasses = async (req, res, next) => {
     // let endDate = new Date(startDate);
     // endDate.setDate(endDate.getDate() + 7);
     // endDate = endDate.toISOString();
+    console.log(startDate, endDate);
+    console.log(new Date(startDate), new Date(endDate));
+
+    const date = moment(startDate, moment.ISO_8601, true);
+
+    console.log(date.isValid());
 
     const userRole = req.user.userType;
     const userId = req.user._id;
     const userID = mongoose.Types.ObjectId(userId); // Replace userId with the actual user ID
-
     const pipeline = [
       {
         $lookup: {
@@ -370,9 +375,6 @@ exports.getClasses = async (req, res, next) => {
           foreignField: "_id",
           as: "classroom",
         },
-      },
-      {
-        $unwind: "$classroom",
       },
       {
         $unwind: "$classroom",
@@ -433,7 +435,7 @@ exports.getClasses = async (req, res, next) => {
       // If user is a teacher, return only classes of the teacher within the date range
       pipeline.push({
         $match: {
-          $and: [{ "teacher.teacherID": userID }],
+          "teacher.teacherID._id": userID,
         },
       });
     } else if (userRole === "student") {

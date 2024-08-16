@@ -285,7 +285,7 @@ exports.getAllQuizzesOfStudent = async (req, res, next) => {
     const classroomIDs = classrooms.map((c) => c._id);
     const quizzes = await Quiz.find({
       classroomID: { $in: classroomIDs },
-    });
+    }).populate("subjectID");
 
     // check if user has submitted the assignment and add isSubmitted to each assignment
     const quizzesWithSubmission = quizzes.map((assignment) => {

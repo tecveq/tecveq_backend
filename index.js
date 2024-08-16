@@ -11,7 +11,6 @@ const cors = require("cors");
 const passport = require("passport"); // authentication
 const { initializingPassport } = require("./passportConfig");
 const MongoStore = require("connect-mongo");
-const { initializeSocket } = require("./utils/socket");
 
 const userRouter = require("./routes/user");
 
@@ -19,6 +18,8 @@ const mongoose = require("mongoose");
 
 var debug = require("debug")("tyre-project:server");
 var http = require("http");
+var https = require("https");
+var fs = require("fs");
 const classoomRouter = require("./routes/classroom");
 const announcementRouter = require("./routes/announcements");
 const subjectRouter = require("./routes/subject");
@@ -29,7 +30,8 @@ const notificationRouter = require("./routes/notification");
 const feedbackRouter = require("./routes/feedback");
 const quizRouter = require("./routes/quiz");
 const { io } = require("./utils/socket");
-const { isStudentChild } = require("./middlewares/isStudentChild");
+const { checkLoggedIn } = require("./middlewares/checkLoggedIn");
+const authRouter = require("./routes/auth");
 
 var app = express();
 
@@ -68,17 +70,18 @@ initializingPassport(passport);
 app.use(passport.session());
 
 // api routes
-app.use("/api/user/", userRouter);
-app.use("/api/classroom/", classoomRouter);
-app.use("/api/announcement/", announcementRouter);
-app.use("/api/subject/", subjectRouter);
-app.use("/api/level/", levelRouter);
-app.use("/api/class/", classRouter);
-app.use("/api/assignment/", assignmentRouter);
-app.use("/api/quiz/", quizRouter);
-app.use("/api/notification/", notificationRouter);
-app.use("/api/feedback/", feedbackRouter);
-app.use("/api/chatroom/", require("./routes/chatroom"));
+app.use("/api/auth/", authRouter);
+app.use("/api/user/", checkLoggedIn, userRouter);
+app.use("/api/classroom/", checkLoggedIn, classoomRouter);
+app.use("/api/announcement/", checkLoggedIn, announcementRouter);
+app.use("/api/subject/", checkLoggedIn, subjectRouter);
+app.use("/api/level/", checkLoggedIn, levelRouter);
+app.use("/api/class/", checkLoggedIn, classRouter);
+app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
+app.use("/api/quiz/", checkLoggedIn, quizRouter);
+app.use("/api/notification/", checkLoggedIn, notificationRouter);
+app.use("/api/feedback/", checkLoggedIn, feedbackRouter);
+app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
 app.use("/api/parent", require("./routes/parent"));
 
 app.get("*", (req, res) => {
@@ -113,7 +116,21 @@ mongoose.connect(db, (err) => {
 var port = normalizePort(process.env.PORT || "3001");
 app.set("port", port);
 
-var server = http.createServer(app);
+// production
+const sslOptions = {
+  key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
+  cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem")
+}
+/////////////////////////// Production
+
+// development
+// var server = http.createServer(app);
+////////////////////// developent
+
+// production
+var server = http.createServer(sslOptions, app)
+
+////////////////////////// production
 
 // create socket
 // const io = require("socket.io")(server, {
@@ -125,7 +142,25 @@ var server = http.createServer(app);
 // initializeSocket(io);
 io.attach(server);
 
-server.listen(port);
+// development
+// server.listen(port, () =>{
+//   console.log(`Server is running on port ${port}`);
+// });
+////////////////////////////////
+
+// production
+server.listen(443, () =>{
+  console.log(`AWS Server is running on port ${443}`);
+});
+
+
+http.createServer((req, res) => {
+  res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
+  res.end();
+}).listen(80);
+
+////////////////////////////////
+
 server.on("error", onError);
 server.on("listening", onListening);
 

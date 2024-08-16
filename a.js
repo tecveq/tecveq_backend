@@ -66,6 +66,7 @@
 //     }
 //   );
 // }
+console.log(new Date());
 
 const express = require("express");
 const { google } = require("googleapis");
@@ -139,7 +140,6 @@ app.get("/create-event", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
   authorize();

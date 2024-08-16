@@ -157,4 +157,22 @@ exports.getParentChats = async (req, res, next) => {
   }
 };
 
+exports.getChildrenOfParent = async (req, res, next) => {
+  try {
+    const { email } = req.params;
+
+    const parent = await User.findOne({ email }).select("-password");
+
+    if (!parent) next({ message: "User not found" });
+
+    const children = await User.find({ guardianEmail: parent.email }).select(
+      "-password"
+    );
+
+    res.send(children);
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getParentChats;

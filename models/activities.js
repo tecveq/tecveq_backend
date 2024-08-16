@@ -7,12 +7,11 @@ const activitySchema = new mongoose.Schema({
     required: true,
   },
   loginTime: {
-    type: String,
+    type: Date,
     required: true,
   },
   logoutTime: {
-    type: String,
-    required: true,
+    type: Date,
   },
   device: {
     type: String,

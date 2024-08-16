@@ -34,6 +34,14 @@ const chatroomSchema = new mongoose.Schema({
       },
     },
   ],
+  lastMsg: {
+    sentBy: { type: mongoose.Types.ObjectId, ref: "User" },
+    date: { type: Date },
+    messageType: {
+      type: String,
+    },
+    message: { type: String },
+  },
 });
 
 const Chatroom = mongoose.model("Chatroom", chatroomSchema);

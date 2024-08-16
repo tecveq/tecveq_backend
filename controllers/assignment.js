@@ -4,47 +4,48 @@ const Classroom = require("../models/classroom");
 exports.createAssignment = async (req, res, next) => {
   const { title, totalMarks, dueDate, files, classroomID, subjectID } =
     req.body;
-
-  //check if classroom exists and teacher is part of that classroom
-  const classroom = await Classroom.findById(classroomID);
-  if (!classroom) {
-    return res.status(404).send();
-  }
-
-  // check if dueDate is greater than current date
-  if (new Date() > new Date(dueDate)) {
-    return res.status(400).send("Due date should be greater than current date");
-  }
-
-  const isTeacher = classroom.teachers.find(
-    (tea) => tea.teacher.toString() == req.user._id.toString()
-  );
-  if (!isTeacher) {
-    return res.status(403).send();
-  }
-
-  // check if teacher is assigned that subject in that classroom
-  const isSubjectTeacher = classroom.teachers.find(
-    (tea) =>
-      tea.teacher.toString() == req.user._id.toString() &&
-      tea.subject.toString() == subjectID
-  );
-
-  if (!isSubjectTeacher) {
-    return res.status(403).send();
-  }
-
-  const createdBy = req.user._id;
-  const assignment = new Assignment({
-    title,
-    totalMarks,
-    dueDate,
-    files,
-    createdBy,
-    classroomID,
-    subjectID,
-  });
   try {
+    //check if classroom exists and teacher is part of that classroom
+    const classroom = await Classroom.findById(classroomID);
+    if (!classroom) {
+      return res.status(404).send();
+    }
+
+    // check if dueDate is greater than current date
+    if (new Date() > new Date(dueDate)) {
+      return res
+        .status(400)
+        .send("Due date should be greater than current date");
+    }
+
+    const isTeacher = classroom.teachers.find(
+      (tea) => tea.teacher.toString() == req.user._id.toString()
+    );
+    if (!isTeacher) {
+      return res.status(403).send();
+    }
+
+    // check if teacher is assigned that subject in that classroom
+    const isSubjectTeacher = classroom.teachers.find(
+      (tea) =>
+        tea.teacher.toString() == req.user._id.toString() &&
+        tea.subject.toString() == subjectID
+    );
+
+    if (!isSubjectTeacher) {
+      return res.status(403).send();
+    }
+
+    const createdBy = req.user._id;
+    const assignment = new Assignment({
+      title,
+      totalMarks,
+      dueDate,
+      files,
+      createdBy,
+      classroomID,
+      subjectID,
+    });
     await assignment.save();
     res.status(201).send(assignment);
   } catch (error) {
@@ -272,7 +273,7 @@ exports.getAllAssignmentsOfStudent = async (req, res, next) => {
     const classroomIDs = classrooms.map((c) => c._id);
     const assignments = await Assignment.find({
       classroomID: { $in: classroomIDs },
-    });
+    }).populate("subjectID");
 
     // check if user has submitted the assignment and add isSubmitted to each assignment
     const assignmentsWithSubmission = assignments.map((assignment) => {

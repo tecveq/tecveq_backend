@@ -2,11 +2,8 @@ const express = require("express");
 const userRouter = express.Router();
 const controller = require("../controllers/user");
 
-// Login route
-userRouter.post("/login", controller.login);
-
-// Register route
-userRouter.post("/register", controller.register);
+// update user
+userRouter.put("/update", controller.updateUser);
 
 // Logout route
 userRouter.get("/logout", controller.logout);
@@ -18,10 +15,10 @@ userRouter.get("/not-in-classroom/:levelID", controller.getUsersNotInClassroom);
 userRouter.get("/", controller.getUsers);
 
 // accept user
-userRouter.put("/accept/:id", controller.acceptUser);
+userRouter.put("/accept/:userID", controller.acceptUser);
 
 // reject user
-userRouter.delete("/reject/:id", controller.rejectUser);
+userRouter.delete("/reject/:userID", controller.rejectUser);
 
 // get all students
 userRouter.get("/students", controller.getAllStudents);
@@ -37,14 +34,14 @@ userRouter.get(
 
 // get student report for admin
 userRouter.get(
-  "/student-report-admin/:studentID",
+  "/student-reports-admin/:studentID",
   controller.getStudentReportsForAdmin
 );
 
-// get subjects of student
+// get subjects of student for admin
 userRouter.get("/student-subjects/:studentID", controller.getStudentSubjects);
 
-// get assignments and quizes of student of a subject
+// get assignments and quizes of student of a subject for admin
 userRouter.get(
   "/student-assignments-quizes/:studentID/:subjectID",
   controller.getStudentGradesForSubject
@@ -52,5 +49,20 @@ userRouter.get(
 
 // get teachers for admin
 userRouter.get("/admin/teachers", controller.getTeachersForAdmin);
+
+// update user by admin
+userRouter.put("/admin/user/:userID", controller.updateUserByAdmin);
+
+// delete user by admin
+userRouter.delete("/admin/user/:userID", controller.deleteUserByAdmin);
+
+// get subjects of student for student
+userRouter.get("/student/subjects", controller.getStudentSubjectsForStudent);
+
+// get assignments and quizes of student of a subject for student
+userRouter.get(
+  "/student/assignments-quizes/:subjectID",
+  controller.getStudentGradesForSubjectForStudent
+);
 
 module.exports = userRouter;

@@ -14,4 +14,6 @@ parentRouter.get(
   parentController.getParentChats
 );
 
+parentRouter.get("/children/:email", parentController.getChildrenOfParent);
+
 module.exports = parentRouter;

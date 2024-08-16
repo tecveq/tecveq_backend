@@ -6,14 +6,19 @@ quizRouter.put("/:id", quizController.editQuiz);
 //delete quiz
 quizRouter.delete("/:id", quizController.deleteQuiz);
 //get quizes of classroom
-quizRouter.get("/:classroomID", quizController.getQuizesOfClassroom);
+quizRouter.get(
+  "/all/classroom/:classroomID",
+  quizController.getQuizesOfClassroom
+);
 //get quizes of classroom of teacher
 quizRouter.get(
-  "/teacher/:classroomID",
+  "/all/teacher/classroom/:classroomID",
   quizController.getQuizesOfClassroomOfTeacher
 );
 //get all quizes of teacher
-quizRouter.get("/teacher", quizController.getAllQuizesOfTeacher);
+quizRouter.get("/all/teacher", quizController.getAllQuizesOfTeacher);
+// get all quizes of student
+quizRouter.get("/all/student", quizController.getAllQuizzesOfStudent);
 //get quiz by id
 quizRouter.get("/:id", quizController.getQuizById);
 //submit quiz
@@ -22,8 +27,6 @@ quizRouter.post("/submit/:id", quizController.submitQuiz);
 quizRouter.post("/grade/:id", quizController.gradeQuizes);
 // get quiz of student
 quizRouter.get("/single/:id", quizController.getQuizById);
-// get all quizes of student
-quizRouter.get("/all", quizController.getAllQuizzesOfStudent);
 
 // get quiz for grading
 quizRouter.get("/submissions/:quizID", quizController.getQuizForGrading);
