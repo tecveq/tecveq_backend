@@ -85,7 +85,12 @@ app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
 app.use("/api/parent", require("./routes/parent"));
 
 app.get("*", (req, res) => {
-  res.sendFile(path.resolve(__dirname, "public", "index.html"));
+  // res.sendFile(path.resolve(__dirname, "public", "index.html"));
+  res.send({
+    success: true,
+    count: 1,
+    message: "Backend live on AWS!"
+  })
 });
 
 // catch 404 and forward to error handler
