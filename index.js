@@ -131,8 +131,8 @@ mongoose.connect(db, (err) => {
 
 // production
 const sslOptions = {
-  key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey1.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain1.pem")
+  key: fs.readFileSync("/etc/letsencrypt/archive/manolms.com/privkey1.pem"),
+  cert: fs.readFileSync("/etc/letsencrypt/archive/manolms.com/fullchain1.pem")
 }
 /////////////////////////// Production
 
