@@ -60,6 +60,10 @@ app.use(
       mongoUrl: process.env.MONGO_CONNECTION,
     }),
     saveUninitialized: true,
+    cookie: {
+      secure: true,
+      sameSite: "none",
+      },
   })
 );
 
@@ -86,8 +90,8 @@ app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     success: true,
-    lastCount:1,
-    count: 2,
+    lastCount:2,
+    count: 3,
     message: "Backend live on AWS!"
   })
 });
