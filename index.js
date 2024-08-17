@@ -43,10 +43,8 @@ app.use(cookieParser());
 app.use(
   cors({
     credentials: true,
-    // origin: ["http://localhost:3000",],
-    origin: [process.env.CLIENT_BASE_URL],
-
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: ["https://tca-portal.netlify.app", "https://tca-test-deploy.vercel.app", "http://localhost:5173"],
+    methods: ["GET", "POST", "PUT", "DELETE","OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
@@ -88,7 +86,8 @@ app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     success: true,
-    count: 1,
+    lastCount:1,
+    count: 2,
     message: "Backend live on AWS!"
   })
 });
