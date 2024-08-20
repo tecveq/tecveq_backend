@@ -60,10 +60,10 @@ app.use(
       mongoUrl: process.env.MONGO_CONNECTION,
     }),
     saveUninitialized: true,
-    // cookie: {
-    //   secure: true,
-    //   sameSite: "none",
-    //   },
+    cookie: {
+      secure: true,
+      sameSite: "none",
+      },
   })
 );
 
@@ -146,7 +146,7 @@ const sslOptions = {
 // production
 var server = https.createServer(sslOptions, app)
 
-////////////////////////// production
+//////////////////////////
 
 // create socket
 // const io = require("socket.io")(server, {
