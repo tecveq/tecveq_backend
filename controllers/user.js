@@ -330,12 +330,12 @@ exports.getStudentReportForTeacher = async (req, res, next) => {
           avgAssMarksPer > 90
             ? "A"
             : avgAssMarksPer > 80
-            ? "B"
-            : avgAssMarksPer > 70
-            ? "C"
-            : avgAssMarksPer > 60
-            ? "D"
-            : "F",
+              ? "B"
+              : avgAssMarksPer > 70
+                ? "C"
+                : avgAssMarksPer > 60
+                  ? "D"
+                  : "F",
       },
       averageQuizMarks: {
         percentage: avgQuizMarksPer,
@@ -343,12 +343,12 @@ exports.getStudentReportForTeacher = async (req, res, next) => {
           avgQuizMarksPer > 90
             ? "A"
             : avgQuizMarksPer > 80
-            ? "B"
-            : avgQuizMarksPer > 70
-            ? "C"
-            : avgQuizMarksPer > 60
-            ? "D"
-            : "F",
+              ? "B"
+              : avgQuizMarksPer > 70
+                ? "C"
+                : avgQuizMarksPer > 60
+                  ? "D"
+                  : "F",
       },
       assignments: assignments.map((ass) => {
         return {
@@ -578,12 +578,12 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
           avgQuizMarksPer > 90
             ? "A"
             : avgQuizMarksPer > 80
-            ? "B"
-            : avgQuizMarksPer > 70
-            ? "C"
-            : avgQuizMarksPer > 60
-            ? "D"
-            : "F",
+              ? "B"
+              : avgQuizMarksPer > 70
+                ? "C"
+                : avgQuizMarksPer > 60
+                  ? "D"
+                  : "F",
       },
       assignments: {
         data:
@@ -595,12 +595,12 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
           avgAssMarksPer > 90
             ? "A"
             : avgAssMarksPer > 80
-            ? "B"
-            : avgAssMarksPer > 70
-            ? "C"
-            : avgAssMarksPer > 60
-            ? "D"
-            : "F",
+              ? "B"
+              : avgAssMarksPer > 70
+                ? "C"
+                : avgAssMarksPer > 60
+                  ? "D"
+                  : "F",
       },
     });
   } catch (err) {
@@ -952,12 +952,11 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
       },
       {
         $match: {
-          "assignments.submissions.studentID":
-            mongoose.Types.ObjectId(studentID),
-          "assignments.submissions.marks": { $exists: true, $ne: null },
+          // "assignments.submissions.studentID": mongoose.Types.ObjectId(studentID),
+          // "assignments.submissions.marks": { $exists: true, $ne: null },
           "assignments.subjectID": mongoose.Types.ObjectId(subjectID),
-          "quizzes.submissions.studentID": mongoose.Types.ObjectId(studentID),
-          "quizzes.submissions.marks": { $exists: true, $ne: null },
+          // "quizzes.submissions.studentID": mongoose.Types.ObjectId(studentID),
+          // "quizzes.submissions.marks": { $exists: true, $ne: null },
           "quizzes.subjectID": mongoose.Types.ObjectId(subjectID),
         },
       },
@@ -967,6 +966,8 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
           assignments: {
             $addToSet: {
               _id: "$assignments._id",
+              deadline: "$assignments.dueDate",
+              title: "$assignments.title",
               totalMarks: "$assignments.totalMarks",
               obtainedMarks: {
                 $arrayElemAt: [
@@ -986,6 +987,52 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
                       },
                       as: "submission",
                       in: "$$submission.marks",
+                    },
+                  },
+                  0,
+                ],
+              },
+              submittedAt: {
+                $arrayElemAt: [
+                  {
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: "$assignments.submissions",
+                          as: "submission",
+                          cond: {
+                            $eq: [
+                              "$$submission.studentID",
+                              mongoose.Types.ObjectId(studentID),
+                            ],
+                          },
+                        },
+                      },
+                      as: "submission",
+                      in: "$$submission.submittedAt",
+                    },
+                  },
+                  0,
+                ],
+              },
+              feedback: {
+                $arrayElemAt: [
+                  {
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: "$assignments.submissions",
+                          as: "submission",
+                          cond: {
+                            $eq: [
+                              "$$submission.studentID",
+                              mongoose.Types.ObjectId(studentID),
+                            ],
+                          },
+                        },
+                      },
+                      as: "submission",
+                      in: "$$submission.feedback",
                     },
                   },
                   0,
@@ -1019,6 +1066,8 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
           quizzes: {
             $addToSet: {
               _id: "$quizzes._id",
+              deadline: "$quizzes.dueDate",
+              title: "$quizzes.title",
               totalMarks: "$quizzes.totalMarks",
               obtainedMarks: {
                 $arrayElemAt: [
@@ -1038,6 +1087,52 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
                       },
                       as: "submission",
                       in: "$$submission.marks",
+                    },
+                  },
+                  0,
+                ],
+              },
+              submittedAt: {
+                $arrayElemAt: [
+                  {
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: "$quizzes.submissions",
+                          as: "submission",
+                          cond: {
+                            $eq: [
+                              "$$submission.studentID",
+                              mongoose.Types.ObjectId(studentID),
+                            ],
+                          },
+                        },
+                      },
+                      as: "submission",
+                      in: "$$submission.submittedAt",
+                    },
+                  },
+                  0,
+                ],
+              },
+              feedback: {
+                $arrayElemAt: [
+                  {
+                    $map: {
+                      input: {
+                        $filter: {
+                          input: "$quizzes.submissions",
+                          as: "submission",
+                          cond: {
+                            $eq: [
+                              "$$submission.studentID",
+                              mongoose.Types.ObjectId(studentID),
+                            ],
+                          },
+                        },
+                      },
+                      as: "submission",
+                      in: "$$submission.feedback",
                     },
                   },
                   0,
@@ -1075,7 +1170,7 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
           _id: 0,
           assignments: 1,
           quizzes: 1,
-        },
+        }
       },
     ]);
 
@@ -1085,7 +1180,7 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
       if (userAssignmentsAndQuizzes[0].quizzes.length > 0)
         avgQuizMarksPer =
           (userAssignmentsAndQuizzes[0].quizzes.reduce(
-            (total, assignment) => total + assignment.obtainedMarks,
+            (total, assignment) => total + assignment.obtainedMarks || 0,
             0
           ) /
             userAssignmentsAndQuizzes[0].quizzes.reduce(
@@ -1096,7 +1191,7 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
       if (userAssignmentsAndQuizzes[0].assignments.length > 0)
         avgAssMarksPer =
           (userAssignmentsAndQuizzes[0].assignments.reduce(
-            (total, assignment) => total + assignment.obtainedMarks,
+            (total, assignment) => total + assignment.obtainedMarks || 0,
             0
           ) /
             userAssignmentsAndQuizzes[0].assignments.reduce(

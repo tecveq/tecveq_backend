@@ -77,7 +77,8 @@ exports.createClassroom = async (req, res, next) => {
 
       for (let i = 0; i < teachers.length; i++) {
         const teacher = teachers[i].teacher;
-        if (!teacher[i].subject) {
+        if (!teachers[i].subject) {
+          console.log("here in array loop")
           return res.status(400).send("Subject is required");
         }
         const classroom = await Classroom.findOne({

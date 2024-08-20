@@ -60,10 +60,10 @@ app.use(
       mongoUrl: process.env.MONGO_CONNECTION,
     }),
     saveUninitialized: true,
-    cookie: {
-      secure: true,
-      sameSite: "none",
-      },
+    // cookie: {
+    //   secure: true,
+    //   sameSite: "none",
+    //   },
   })
 );
 
@@ -90,8 +90,8 @@ app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     success: true,
-    lastCount:2,
-    count: 3,
+    lastCount:3,
+    count: 4,
     message: "Backend live on AWS!"
   })
 });
@@ -128,20 +128,20 @@ mongoose.connect(db,  { useNewUrlParser: true, useUnifiedTopology: true }, (err)
   }
 });
 
-// var port = 443;
+var port = 443;
 // var port = normalizePort(process.env.PORT || "3001");
 // app.set("port", port);
 
-// production
+// // production
 const sslOptions = {
   key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
   cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem")
 }
-/////////////////////////// Production
+// /////////////////////////// Production
 
 // development
 // var server = http.createServer(app);
-////////////////////// developent
+// //////////////////// developent
 
 // production
 var server = https.createServer(sslOptions, app)
