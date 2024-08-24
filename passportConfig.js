@@ -18,19 +18,19 @@ exports.initializingPassport = (passport) => {
             return done(null, false, { message: "User does not exist" });
           } else {
             if (foundUser.userType === "parent") {
-              if (!req.body.currentStudentID) {
-                return done(null, false, {
-                  message: "Please provide the current student ID",
-                });
-              }
-              // check if student has guardian with the email provided
-              const student = await User.findOne({
-                _id: req.body.currentStudentID,
-                guardianEmail: email,
-              });
-              if (!student) {
-                return done(null, false, { message: "Student does not exist" });
-              }
+              // if (!req.body.currentStudentID) {
+              //   return done(null, false, {
+              //     message: "Please provide the current student ID",
+              //   });
+              // }
+              // // check if student has guardian with the email provided
+              // const student = await User.findOne({
+              //   _id: req.body.currentStudentID,
+              //   guardianEmail: email,
+              // });
+              // if (!student) {
+              //   return done(null, false, { message: "Student does not exist" });
+              // }
 
               return done(null, {
                 ...foundUser._doc,
