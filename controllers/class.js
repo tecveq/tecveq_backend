@@ -155,14 +155,16 @@ exports.createClass = async (req, res, next) => {
       return res.status(400).send("Students already have a class at this time");
     }
 
+    console.log("before meet creation");
     
-    // let authClient = await authorize();
-    // let meetlink = await createSpace(authClient);
-    // console.log("meeting link data is : ", meetlink);
+    let authClient = await authorize();
+    console.log("after meet auth");
+    let meetlink = await createSpace(authClient);
+    console.log("meeting link data is : ", meetlink);
+    
+    
+    
     // let participants = [];
-
-
-
     // setTimeout(async () => {
     //   participants = await getMeetingParticipents(authClient, meetlink);
     //   for await (const response of participants) {
@@ -171,8 +173,8 @@ exports.createClass = async (req, res, next) => {
     //   console.log("participants are : ", participants);
     // }, 10000);
 
-    // const classs = new Class({ ...data, createdBy: req.user._id, meetLink: meetlink.meetingUri });
-    const classs = new Class({ ...data, createdBy: req.user._id, meetLink: "https://meet.google.com/zfe-dbds-ezv" });
+    const classs = new Class({ ...data, createdBy: req.user._id, meetLink: meetlink.meetingUri });
+    // const classs = new Class({ ...data, createdBy: req.user._id, meetLink: "https://meet.google.com/zfe-dbds-ezv" });
     await classs.save();
 
     return res.status(201).send(classs._doc);
