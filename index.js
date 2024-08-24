@@ -60,10 +60,10 @@ app.use(
       mongoUrl: process.env.MONGO_CONNECTION,
     }),
     saveUninitialized: true,
-    cookie: {
-      secure: true,
-      sameSite: "none",
-      },
+    // cookie: {
+    //   secure: true,
+    //   sameSite: "none",
+    //   },
   })
 );
 
@@ -128,23 +128,24 @@ mongoose.connect(db,  { useNewUrlParser: true, useUnifiedTopology: true }, (err)
   }
 });
 
-var port = 443;
+// var port = 443;
+var port = 4000;
 // var port = normalizePort(process.env.PORT || "3001");
 // app.set("port", port);
 
 // // production
-const sslOptions = {
-  key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem")
-}
+// const sslOptions = {
+//   key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
+//   cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem")
+// }
 // /////////////////////////// Production
 
 // development
-// var server = http.createServer(app);
+var server = http.createServer(app);
 // //////////////////// developent
 
 // production
-var server = https.createServer(sslOptions, app)
+// var server = https.createServer(sslOptions, app)
 
 //////////////////////////
 
@@ -159,21 +160,21 @@ var server = https.createServer(sslOptions, app)
 io.attach(server);
 
 // development
-// server.listen(port, () =>{
-//   console.log(`Server is running on port ${port}`);
-// });
+server.listen(port, () =>{
+  console.log(`Server is running on port ${port}`);
+});
 ////////////////////////////////
 
 // production
-server.listen(443, () =>{
-  console.log(`AWS Server is running on port ${443}`);
-});
+// server.listen(443, () =>{
+//   console.log(`AWS Server is running on port ${443}`);
+// });
 
 
-http.createServer((req, res) => {
-  res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
-  res.end();
-}).listen(80);
+// http.createServer((req, res) => {
+//   res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
+//   res.end();
+// }).listen(80);
 
 ////////////////////////////////
 

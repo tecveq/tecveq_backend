@@ -945,19 +945,29 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
         },
       },
       {
-        $unwind: "$assignments",
+        $unwind: {
+          path: "$assignments",
+          preserveNullAndEmptyArrays: true,
+        },
       },
       {
-        $unwind: "$quizzes",
+        $unwind: {
+          path: "$quizzes",
+          preserveNullAndEmptyArrays: true
+        }
       },
       {
         $match: {
-          // "assignments.submissions.studentID": mongoose.Types.ObjectId(studentID),
-          // "assignments.submissions.marks": { $exists: true, $ne: null },
-          "assignments.subjectID": mongoose.Types.ObjectId(subjectID),
-          // "quizzes.submissions.studentID": mongoose.Types.ObjectId(studentID),
-          // "quizzes.submissions.marks": { $exists: true, $ne: null },
-          "quizzes.subjectID": mongoose.Types.ObjectId(subjectID),
+          $or: [
+            {
+              "assignments.subjectID": mongoose.Types.ObjectId(subjectID),
+              "assignments.submissions.marks": { $exists: true, $ne: null },
+            },
+            {
+              "quizzes.subjectID": mongoose.Types.ObjectId(subjectID),
+              "quizzes.submissions.marks": { $exists: true, $ne: null },
+            }
+          ]
         },
       },
       {
@@ -1174,31 +1184,62 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
       },
     ]);
 
+    // console.log("report array with quiz", userAssignmentsAndQuizzes[0])
+
     let avgQuizMarksPer = 0;
     let avgAssMarksPer = 0;
     if (userAssignmentsAndQuizzes.length > 0) {
-      if (userAssignmentsAndQuizzes[0].quizzes.length > 0)
-        avgQuizMarksPer =
-          (userAssignmentsAndQuizzes[0].quizzes.reduce(
-            (total, assignment) => total + assignment.obtainedMarks || 0,
-            0
-          ) /
-            userAssignmentsAndQuizzes[0].quizzes.reduce(
-              (total, assignment) => total + assignment.totalMarks,
-              0
-            )) *
-          100;
-      if (userAssignmentsAndQuizzes[0].assignments.length > 0)
-        avgAssMarksPer =
-          (userAssignmentsAndQuizzes[0].assignments.reduce(
-            (total, assignment) => total + assignment.obtainedMarks || 0,
-            0
-          ) /
-            userAssignmentsAndQuizzes[0].assignments.reduce(
-              (total, assignment) => total + assignment.totalMarks,
-              0
-            )) *
-          100;
+      if (userAssignmentsAndQuizzes[0].quizzes.length > 0) {
+        // avgQuizMarksPer =
+        //   (userAssignmentsAndQuizzes[0].quizzes.reduce(
+        //     (total, assignment) => total + assignment.obtainedMarks || 0,
+        //     0
+        //   ) /
+        //     userAssignmentsAndQuizzes[0].quizzes.reduce(
+        //       (total, assignment) => total + assignment.totalMarks || 0,
+        //       0
+        //     )) *
+        //   100;
+
+        const totalObtainedMarks = userAssignmentsAndQuizzes[0].quizzes.reduce(
+          (total, assignment) => total + (assignment.obtainedMarks || 0),
+          0
+        );
+
+        const totalMarks = userAssignmentsAndQuizzes[0].quizzes.reduce(
+          (total, assignment) => total + (assignment.totalMarks || 0),
+          0
+        );
+
+        avgQuizMarksPer = (totalObtainedMarks / totalMarks) * 100;
+
+        console.log(" quiz marks per are : ", avgQuizMarksPer);
+
+      }
+      if (userAssignmentsAndQuizzes[0].assignments.length > 0) {
+
+        // avgAssMarksPer = (userAssignmentsAndQuizzes[0].assignments.reduce(
+        //   (total, assignment) => total + assignment.obtainedMarks || 0,
+        //   0
+        // ) / userAssignmentsAndQuizzes[0].assignments.reduce(
+        //   (total, assignment) => total + assignment.totalMarks || 0,
+        //   0
+        // )) * 100;
+
+        const totalObtainedMarks = userAssignmentsAndQuizzes[0].assignments.reduce(
+          (total, assignment) => total + (assignment.obtainedMarks || 0),
+          0
+        );
+
+        const totalMarks = userAssignmentsAndQuizzes[0].assignments.reduce(
+          (total, assignment) => total + (assignment.totalMarks || 0),
+          0
+        );
+
+        avgAssMarksPer = (totalObtainedMarks / totalMarks) * 100;
+
+        console.log(" assignment marks per are : ", avgAssMarksPer);
+      }
     }
 
     res.send({
@@ -1212,12 +1253,12 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
           avgQuizMarksPer > 90
             ? "A"
             : avgQuizMarksPer > 80
-            ? "B"
-            : avgQuizMarksPer > 70
-            ? "C"
-            : avgQuizMarksPer > 60
-            ? "D"
-            : "F",
+              ? "B"
+              : avgQuizMarksPer > 70
+                ? "C"
+                : avgQuizMarksPer > 60
+                  ? "D"
+                  : "F",
       },
       assignments: {
         data:
@@ -1229,12 +1270,12 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
           avgAssMarksPer > 90
             ? "A"
             : avgAssMarksPer > 80
-            ? "B"
-            : avgAssMarksPer > 70
-            ? "C"
-            : avgAssMarksPer > 60
-            ? "D"
-            : "F",
+              ? "B"
+              : avgAssMarksPer > 70
+                ? "C"
+                : avgAssMarksPer > 60
+                  ? "D"
+                  : "F",
       },
     });
   } catch (err) {
