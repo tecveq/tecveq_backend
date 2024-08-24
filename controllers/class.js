@@ -157,10 +157,10 @@ exports.createClass = async (req, res, next) => {
 
     console.log("before meet creation");
     
-    let authClient = await authorize();
-    console.log("after meet auth");
-    let meetlink = await createSpace(authClient);
-    console.log("meeting link data is : ", meetlink);
+    // let authClient = await authorize();
+    // console.log("after meet auth");
+    // let meetlink = await createSpace(authClient);
+    // console.log("meeting link data is : ", meetlink);
     
     
     
@@ -173,8 +173,8 @@ exports.createClass = async (req, res, next) => {
     //   console.log("participants are : ", participants);
     // }, 10000);
 
-    const classs = new Class({ ...data, createdBy: req.user._id, meetLink: meetlink.meetingUri });
-    // const classs = new Class({ ...data, createdBy: req.user._id, meetLink: "https://meet.google.com/zfe-dbds-ezv" });
+    // const classs = new Class({ ...data, createdBy: req.user._id, meetLink: meetlink.meetingUri });
+    const classs = new Class({ ...data, createdBy: req.user._id, meetLink: "https://meet.google.com/zfe-dbds-ezv" });
     await classs.save();
 
     return res.status(201).send(classs._doc);
