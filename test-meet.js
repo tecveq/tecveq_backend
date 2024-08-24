@@ -136,6 +136,6 @@ const recordAttendance = async (meetingId, participants) => {
   }
 }
 
-authorize().then(createSpace).catch(console.error);
+// authorize().then(createSpace).catch(console.error);
 
 module.exports = { authorize, createSpace, getMeetingParticipents, recordAttendance, getMeetingParticipents }
