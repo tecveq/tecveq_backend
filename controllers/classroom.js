@@ -67,11 +67,11 @@ exports.createClassroom = async (req, res, next) => {
       for (let i = 0; i < students.length; i++) {
         const student = students[i];
         const classroom = await Classroom.findOne({ students: student });
-        if (classroom) {
-          return res
-            .status(400)
-            .send("Student is already in another classroom");
-        }
+        // if (classroom) {
+        //   return res
+        //     .status(400)
+        //     .send("Student is already in another classroom");
+        // }
       }
       //check if teacher is already in another classroom
 
@@ -84,11 +84,11 @@ exports.createClassroom = async (req, res, next) => {
         const classroom = await Classroom.findOne({
           "teachers.teacher": teacher,
         });
-        if (classroom) {
-          return res
-            .status(400)
-            .send("Teacher is already in another classroom");
-        }
+        // if (classroom) {
+        //   return res
+        //     .status(400)
+        //     .send("Teacher is already in another classroom");
+        // }
       }
     }
 

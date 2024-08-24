@@ -43,7 +43,7 @@ app.use(cookieParser());
 app.use(
   cors({
     credentials: true,
-    origin: ["https://tca-portal.netlify.app", "https://tca-test-deploy.vercel.app", "http://localhost:5173"],
+    origin: ["https://tca-portal.netlify.app", "https://tca-test-deploy.vercel.app", "http://localhost:5173", "*"],
     methods: ["GET", "POST", "PUT", "DELETE","OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -73,18 +73,18 @@ app.use(passport.session());
 
 // api routes
 app.use("/api/auth/", authRouter);
-app.use("/api/user/", checkLoggedIn, userRouter);
-app.use("/api/classroom/", checkLoggedIn, classoomRouter);
-app.use("/api/announcement/", checkLoggedIn, announcementRouter);
-app.use("/api/subject/", checkLoggedIn, subjectRouter);
 app.use("/api/level/", levelRouter);
-app.use("/api/class/", checkLoggedIn, classRouter);
-app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
 app.use("/api/quiz/", checkLoggedIn, quizRouter);
-app.use("/api/notification/", checkLoggedIn, notificationRouter);
+app.use("/api/user/", checkLoggedIn, userRouter);
+app.use("/api/class/", checkLoggedIn, classRouter);
+app.use("/api/subject/", checkLoggedIn, subjectRouter);
 app.use("/api/feedback/", checkLoggedIn, feedbackRouter);
-app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
+app.use("/api/classroom/", checkLoggedIn, classoomRouter);
+app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
+app.use("/api/notification/", checkLoggedIn, notificationRouter);
+app.use("/api/announcement/", checkLoggedIn, announcementRouter);
 app.use("/api/parent", require("./routes/parent"));
+app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
 
 app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
