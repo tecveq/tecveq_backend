@@ -548,7 +548,7 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
       },
     ]);
 
-    console.log("data is : ", userAssignmentsAndQuizzes[0]);
+    // console.log("data is : ", userAssignmentsAndQuizzes[0]);
 
     let avgQuizMarksPer = 0;
     let avgAssMarksPer = 0;
@@ -578,7 +578,7 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
 
         avgQuizMarksPer = (totalObtainedMarks / totalMarks) * 100;
 
-        console.log(" assignment marks per are : ", avgQuizMarksPer);
+        // console.log(" assignment marks per are : ", avgQuizMarksPer);
 
       }
       if (userAssignmentsAndQuizzes[0].assignments.length > 0) {
@@ -605,7 +605,6 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
 
         avgAssMarksPer = (totalObtainedMarks / totalMarks) * 100;
 
-        console.log(" assignment marks per are : ", avgAssMarksPer);
       }
 
     }
@@ -870,7 +869,7 @@ exports.getStudentReportsForAdmin = async (req, res, next) => {
       },
     ]);
 
-    console.log("report for admin is : ", classroomsWithAssignmentsAndQuizes[0]);
+    // console.log("report for admin is : ", classroomsWithAssignmentsAndQuizes[0]);
 
     // get activities of student
     const activities = await Activity.find({ userID: studentID });
@@ -1236,16 +1235,6 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
     let avgAssMarksPer = 0;
     if (userAssignmentsAndQuizzes.length > 0) {
       if (userAssignmentsAndQuizzes[0].quizzes.length > 0) {
-        // avgQuizMarksPer =
-        //   (userAssignmentsAndQuizzes[0].quizzes.reduce(
-        //     (total, assignment) => total + assignment.obtainedMarks || 0,
-        //     0
-        //   ) /
-        //     userAssignmentsAndQuizzes[0].quizzes.reduce(
-        //       (total, assignment) => total + assignment.totalMarks || 0,
-        //       0
-        //     )) *
-        //   100;
 
         const totalObtainedMarks = userAssignmentsAndQuizzes[0].quizzes.reduce(
           (total, assignment) => total + (assignment.obtainedMarks || 0),
@@ -1259,18 +1248,9 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
 
         avgQuizMarksPer = (totalObtainedMarks / totalMarks) * 100;
 
-        console.log(" quiz marks per are : ", avgQuizMarksPer);
-
       }
       if (userAssignmentsAndQuizzes[0].assignments.length > 0) {
 
-        // avgAssMarksPer = (userAssignmentsAndQuizzes[0].assignments.reduce(
-        //   (total, assignment) => total + assignment.obtainedMarks || 0,
-        //   0
-        // ) / userAssignmentsAndQuizzes[0].assignments.reduce(
-        //   (total, assignment) => total + assignment.totalMarks || 0,
-        //   0
-        // )) * 100;
 
         const totalObtainedMarks = userAssignmentsAndQuizzes[0].assignments.reduce(
           (total, assignment) => total + (assignment.obtainedMarks || 0),
@@ -1284,7 +1264,7 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
 
         avgAssMarksPer = (totalObtainedMarks / totalMarks) * 100;
 
-        console.log(" assignment marks per are : ", avgAssMarksPer);
+        // console.log(" assignment marks per are : ", avgAssMarksPer);
       }
     }
 
