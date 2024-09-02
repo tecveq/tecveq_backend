@@ -90,13 +90,13 @@ app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     success: true,
-    lastCount:7,
-    count: 8,
+    lastCount:8,
+    count: 9,
     message: "Backend live on AWS!"
   })
 });
 
-app.get("/developer", (req, res) => {
+app.get("/developers", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     developers: ["Mustafa", "Muneeb", "Hassan"]

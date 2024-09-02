@@ -509,21 +509,6 @@ exports.getTodayClasses = async (req, res, next) => {
       {
         $unwind: "$classroom",
       },
-      // {
-      //   $lookup: {
-      //     from: "users",
-      //     localField: "classroom.students",
-      //     foreignField: "_id",
-      //     as: "classroom.studentdetails"
-      //   }
-      // },
-      // {
-      //   $group: {
-      //     _id: "$_id",
-      //     className: {$first: "$className" },
-      //     classrooms: {$push: "$classroom"}
-      //   }
-      // },
       {
         $lookup: {
           from: "subjects",
@@ -546,6 +531,17 @@ exports.getTodayClasses = async (req, res, next) => {
       {
         $unwind: "$teacher.teacherID",
       },
+      {
+        $lookup: {
+          from: "users",
+          localField: "classroom.students",
+          foreignField: "_id",
+          as: "classroom.studentdetails",
+        },
+      },
+      // {
+      //   $unwind: "$classroom.studentdetails",
+      // },
       {
         $match: {
           $expr: {
