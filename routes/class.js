@@ -6,6 +6,12 @@ classRouter.post("/", classController.createClass);
 
 classRouter.get("/", classController.getClasses);
 
+// today classes for attendence ==> get-classes-for-attendence
+classRouter.get("/get-today-classes", classController.getTodayClasses);
+
+// today classes for attendence ==> get-classes-for-attendence
+classRouter.put("/get-today-classes/:id", classController.submitAttendence);
+
 // reschedule class
 classRouter.put("/:id", classController.rescheduleClass);
 

@@ -90,8 +90,8 @@ app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     success: true,
-    lastCount:5,
-    count: 6,
+    lastCount:7,
+    count: 8,
     message: "Backend live on AWS!"
   })
 });
@@ -146,7 +146,6 @@ const sslOptions = {
 
 // production
 var server = https.createServer(sslOptions, app)
-
 //////////////////////////
 
 // create socket
@@ -175,7 +174,6 @@ http.createServer((req, res) => {
   res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
   res.end();
 }).listen(80);
-
 ////////////////////////////////
 
 server.on("error", onError);

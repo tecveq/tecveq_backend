@@ -156,14 +156,14 @@ exports.createClass = async (req, res, next) => {
     }
 
     console.log("before meet creation");
-    
+
     // let authClient = await authorize();
     // console.log("after meet auth");
     // let meetlink = await createSpace(authClient);
     // console.log("meeting link data is : ", meetlink);
-    
-    
-    
+
+
+
     // let participants = [];
     // setTimeout(async () => {
     //   participants = await getMeetingParticipents(authClient, meetlink);
@@ -179,7 +179,7 @@ exports.createClass = async (req, res, next) => {
 
     return res.status(201).send(classs._doc);
   } catch (err) {
-    next(err); 
+    next(err);
   }
 };
 exports.rescheduleClass = async (req, res, next) => {
@@ -478,3 +478,149 @@ exports.getClasses = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getTodayClasses = async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    // set end date to 1 week from start date
+    // let endDate = new Date(startDate);
+    // endDate.setDate(endDate.getDate() + 7);
+    // endDate = endDate.toISOString();
+    console.log(startDate, endDate);
+    console.log(new Date(startDate), new Date(endDate));
+
+    const date = moment(startDate, moment.ISO_8601, true);
+
+    console.log(date.isValid());
+
+    const userRole = req.user.userType;
+    const userId = req.user._id;
+    const userID = mongoose.Types.ObjectId(userId); // Replace userId with the actual user ID
+    const pipeline = [
+      {
+        $lookup: {
+          from: "classrooms",
+          localField: "classroomID",
+          foreignField: "_id",
+          as: "classroom",
+        },
+      },
+      {
+        $unwind: "$classroom",
+      },
+      // {
+      //   $lookup: {
+      //     from: "users",
+      //     localField: "classroom.students",
+      //     foreignField: "_id",
+      //     as: "classroom.studentdetails"
+      //   }
+      // },
+      // {
+      //   $group: {
+      //     _id: "$_id",
+      //     className: {$first: "$className" },
+      //     classrooms: {$push: "$classroom"}
+      //   }
+      // },
+      {
+        $lookup: {
+          from: "subjects",
+          localField: "subjectID",
+          foreignField: "_id",
+          as: "subjectID",
+        },
+      },
+      {
+        $unwind: "$subjectID",
+      },
+      {
+        $lookup: {
+          from: "users", // assuming "users" is the collection name for teachers
+          localField: "teacher.teacherID",
+          foreignField: "_id",
+          as: "teacher.teacherID",
+        },
+      },
+      {
+        $unwind: "$teacher.teacherID",
+      },
+      {
+        $match: {
+          $expr: {
+            $and: [
+              {
+                $gte: [
+                  { $toDate: "$startTime" },
+                  { $toDate: new Date(startDate).toDateString() },
+                ],
+              },
+              {
+                $lte: [
+                  { $toDate: "$endTime" },
+                  { $toDate: new Date(endDate).toDateString() },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    ];
+
+    // // Match based on user role
+    if (userRole === "admin") {
+      // If user is admin, return all classes within the date range
+      pipeline.push({
+        $match: {
+          "classroom.students": { $exists: true },
+        },
+      });
+    } else if (userRole === "teacher") {
+      // If user is a teacher, return only classes of the teacher within the date range
+      pipeline.push({
+        $match: {
+          "teacher.teacherID._id": userID,
+        },
+      });
+    } else if (userRole === "student") {
+      // If user is a student, return only classes of the student within the date range
+      pipeline.push({
+        $match: {
+          "classroom.students": userID,
+        },
+      });
+    }
+
+    // Add any additional pipeline stages as needed
+
+    // Execute the pipeline
+    const result = await Class.aggregate(pipeline);
+
+    return res.status(200).send(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+exports.submitAttendence = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data } = req.body;
+
+    const studentclass = await Class.findById(id);
+    if (!studentclass) {
+      return res.status(404).send("Class not found");
+    }
+
+    const studentclassdata = await Class.findByIdAndUpdate(id, { attendance: data }, { new: true });
+
+    return res.status(200).send("Class updated successfully!");
+
+  } catch (error) {
+    console.log("error is : ", error);
+    return res.status(500).send("Internal server error!");
+  }
+}

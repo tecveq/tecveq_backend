@@ -271,6 +271,43 @@ exports.getStudentReportForTeacher = async (req, res, next) => {
 
     // get assignments and quizes of the student for that classroom of the teacher of the subject
     const classroom = await Classroom.findById(classroomID);
+
+    const pipeline = [
+      {
+        $match: {
+          classroomID: mongoose.Types.ObjectId(classroomID),
+          subjectID: mongoose.Types.ObjectId(subjectID),
+        },
+      },
+      {
+        $project: {
+          matchedAttendance: {
+            $filter: {
+              input: "$attendance",
+              as: "attendance",
+              cond: {
+                $eq: ["$$attendance.studentID", mongoose.Types.ObjectId(studentID)],
+              },
+            },
+          },
+          title: 1,
+          startTime: 1,
+          endTime: 1,
+          createdBy: 1,
+          oneTime: 1,
+          classroomID: 1,
+          subjectID: 1,
+          teacher: 1,
+          meetLink: 1,
+        },
+      },
+    ];
+
+
+    const classes = await Class.aggregate(pipeline);
+
+    // console.log("classes are : ", classes);
+
     const teacher = classroom.teachers.find(
       (teacher) =>
         teacher.teacher.toString() == teacherID &&
@@ -291,8 +328,24 @@ exports.getStudentReportForTeacher = async (req, res, next) => {
       submissions: { $elemMatch: { studentID, marks: { $exists: true } } },
     });
 
+    let avgAttendencePer = 0;
     let avgAssMarksPer = 0;
     let avgQuizMarksPer = 0;
+
+    if (classes.length > 0) {
+      let presentCount = 0;
+      let absentCount = 0;
+      classes.map((item) => {
+        if (item.matchedAttendance.length > 0) {
+          if (item.matchedAttendance[0].isPresent) {
+            presentCount++
+          } else {
+            absentCount++;
+          }
+        }
+      })
+      avgAttendencePer = (presentCount / classes.length) * 100;
+    }
     if (assignments.length > 0) {
       avgAssMarksPer = (
         (assignments.reduce(
@@ -372,6 +425,7 @@ exports.getStudentReportForTeacher = async (req, res, next) => {
           ).feedback,
         };
       }),
+      attendance: { classes, avgAttendencePer }
     });
   } catch (error) {
     next(error);
@@ -548,10 +602,64 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
       },
     ]);
 
+
+    
+    const pipeline = [
+      {
+        $match: {
+          // classroomID: mongoose.Types.ObjectId(classroomID),
+          subjectID: mongoose.Types.ObjectId(subjectID),
+        },
+      },
+      {
+        $project: {
+          matchedAttendance: {
+            $filter: {
+              input: "$attendance",
+              as: "attendance",
+              cond: {
+                $eq: ["$$attendance.studentID", mongoose.Types.ObjectId(studentID)],
+              },
+            },
+          },
+          title: 1,
+          startTime: 1,
+          endTime: 1,
+          createdBy: 1,
+          oneTime: 1,
+          classroomID: 1,
+          subjectID: 1,
+          teacher: 1,
+          meetLink: 1,
+        },
+      },
+    ];
+
+
+    const classes = await Class.aggregate(pipeline);
+
+
     // console.log("data is : ", userAssignmentsAndQuizzes[0]);
 
+    let avgAttendencePer = 0;
     let avgQuizMarksPer = 0;
     let avgAssMarksPer = 0;
+
+    if (classes.length > 0) {
+      let presentCount = 0;
+      let absentCount = 0;
+      classes.map((item) => {
+        if (item.matchedAttendance.length > 0) {
+          if (item.matchedAttendance[0].isPresent) {
+            presentCount++
+          } else {
+            absentCount++;
+          }
+        }
+      })
+      avgAttendencePer = (presentCount / classes.length) * 100;
+    }
+
     if (userAssignmentsAndQuizzes.length > 0) {
       if (userAssignmentsAndQuizzes[0].quizzes.length > 0) {
 
@@ -645,6 +753,7 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
                   ? "D"
                   : "F",
       },
+      attendance: {avgAttendencePer, classes}
     });
   } catch (err) {
     next(err);
@@ -687,6 +796,8 @@ exports.getTeachersForAdmin = async (req, res, next) => {
     const classrooms = await Classroom.find({})
       .populate("teachers.subject")
       .populate("teachers.teacher");
+
+      console.log(" classroom in get teacher for admin is : ", classrooms, " teacher is : ", teachers);
 
     // get all assignments and quizes of the teacher
     let assignments = await Assignment.find({
@@ -734,9 +845,11 @@ exports.getTeachersForAdmin = async (req, res, next) => {
       };
     });
 
+    console.log("here now ")
     // push all assignments and quize to specific teacher in teachers in classroom
     const teachersInClassroom = classrooms.reduce((result, classroom) => {
       classroom.teachers.forEach((teacher) => {
+        console.log("in arr tea is : ", teacher);
         if (!result[teacher.teacher._id]) {
           result[teacher.teacher._id] = [];
         }
@@ -1229,10 +1342,66 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
       },
     ]);
 
+
+    const pipeline = [
+      {
+        $match: {
+          // classroomID: mongoose.Types.ObjectId(classroomID),
+          subjectID: mongoose.Types.ObjectId(subjectID),
+        },
+      },
+      {
+        $project: {
+          matchedAttendance: {
+            $filter: {
+              input: "$attendance",
+              as: "attendance",
+              cond: {
+                $eq: ["$$attendance.studentID", mongoose.Types.ObjectId(studentID)],
+              },
+            },
+          },
+          title: 1,
+          startTime: 1,
+          endTime: 1,
+          createdBy: 1,
+          oneTime: 1,
+          classroomID: 1,
+          subjectID: 1,
+          teacher: 1,
+          meetLink: 1,
+        },
+      },
+    ];
+
+
+    const classes = await Class.aggregate(pipeline);
+
+    console.log("class report data is ; ", classes);
+
+
     // console.log("report array with quiz", userAssignmentsAndQuizzes[0])
 
+    let avgAttendencePer = 0;
     let avgQuizMarksPer = 0;
     let avgAssMarksPer = 0;
+    
+    let presentCount = 0;
+    let absentCount = 0;
+
+    if (classes.length > 0) {
+      classes.map((item) => {
+        if (item.matchedAttendance.length > 0) {
+          if (item.matchedAttendance[0].isPresent) {
+            presentCount++
+          } else {
+            absentCount++;
+          }
+        }
+      })
+      avgAttendencePer = (presentCount / classes.length) * 100;
+    }
+
     if (userAssignmentsAndQuizzes.length > 0) {
       if (userAssignmentsAndQuizzes[0].quizzes.length > 0) {
 
@@ -1303,6 +1472,7 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
                   ? "D"
                   : "F",
       },
+      attendance: {classes, avgAttendencePer, presentCount, absentCount}
     });
   } catch (err) {
     next(err);
