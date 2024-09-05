@@ -603,7 +603,7 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
     ]);
 
 
-    
+
     const pipeline = [
       {
         $match: {
@@ -753,7 +753,7 @@ exports.getStudentGradesForSubject = async (req, res, next) => {
                   ? "D"
                   : "F",
       },
-      attendance: {avgAttendencePer, classes}
+      attendance: { avgAttendencePer, classes }
     });
   } catch (err) {
     next(err);
@@ -770,6 +770,33 @@ exports.getStudentSubjects = async (req, res, next) => {
       .populate("teachers.subject")
       .populate("teachers.teacher");
 
+    // const classes = await Class.find({
+    //   classroomID: { $in: classrooms.map((classroom) => classroom._id) },
+    //   attendance: {$elemMatch: {studentID: student._id}}
+    // })
+
+    const classes = await Class.aggregate([
+      {
+        $match: {
+          classroomID: { $in: classrooms.map((classroom) => classroom._id) },
+        }
+      },
+      {
+        $project: {
+          subjectID: 1,
+          attendance: {
+            $filter: {
+              input: "$attendance",
+              as: "attendence",
+              cond: {
+                $eq: ["$$attendence.studentID", student._id]
+              }
+            }
+          }
+        }
+      }
+    ])
+
     const subjects = classrooms.reduce((result, classroom) => {
       if (classroom.teachers && classroom.teachers.length > 0) {
         classroom.teachers.forEach((teacher) => {
@@ -784,6 +811,27 @@ exports.getStudentSubjects = async (req, res, next) => {
       return result;
     }, []);
 
+    let newData = []
+    let newobj = {}
+    let matched = false;
+
+    subjects.map((sub) => {
+      classes.map((cls) => {
+        if (sub.subject._id.toString() == cls.subjectID.toString()) {
+          console.log(" inside if ");
+          matched = true
+          newobj = { ...sub, attendance: cls }
+          newData.push(newobj);
+        }
+      })
+      if (!matched) {
+        newData.push(sub);
+        matched = false;
+      }
+    })
+
+    console.log("new subs are : ", newData);
+
     res.send(subjects);
   } catch (err) {
     next(err);
@@ -797,7 +845,15 @@ exports.getTeachersForAdmin = async (req, res, next) => {
       .populate("teachers.subject")
       .populate("teachers.teacher");
 
-      console.log(" classroom in get teacher for admin is : ", classrooms, " teacher is : ", teachers);
+    const classes = await Class.find({});
+
+    // teachers.forEach((teach) => {
+    //   let teacharr = classes.filter((c) => c.teacher.teacherID.toString() == teach._id.toString());
+    //   if (teacharr.length > 0) {
+    //     let count = teacharr.reduce((acum, resul) => (resul.teacher.status == "present"? acum.presents = acum.presents + 1 : acum.presents, acum) ,{presents: 0})
+    //     console.log(count);
+    //   }
+    // })
 
     // get all assignments and quizes of the teacher
     let assignments = await Assignment.find({
@@ -845,14 +901,24 @@ exports.getTeachersForAdmin = async (req, res, next) => {
       };
     });
 
-    console.log("here now ")
+
     // push all assignments and quize to specific teacher in teachers in classroom
     const teachersInClassroom = classrooms.reduce((result, classroom) => {
       classroom.teachers.forEach((teacher) => {
-        console.log("in arr tea is : ", teacher);
         if (!result[teacher.teacher._id]) {
           result[teacher.teacher._id] = [];
         }
+
+        let classData = classes.filter((c) => {
+          return (
+            c.teacher.teacherID.toString() == teacher.teacher._id.toString() &&
+            c.classroomID == classroom._id.toString()
+          )
+        });
+        let attendnececount = {};
+        attendnececount = classData.reduce((acum, resul) => (resul.teacher.status == "present" ? acum.presents = acum.presents + 1 : acum.presents, acum), { presents: 0 })
+        // console.log(attendnececount);
+
         let ass = assignments.filter((a) => {
           return (
             a.createdBy.toString() == teacher.teacher._id.toString() &&
@@ -878,6 +944,10 @@ exports.getTeachersForAdmin = async (req, res, next) => {
           }, 0) / qui.length;
 
         result[teacher.teacher._id].push({
+          attendence: {
+            classData,
+            attendnececount
+          },
           assignments: {
             count: ass.length,
             percentage: ass2,
@@ -1385,7 +1455,7 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
     let avgAttendencePer = 0;
     let avgQuizMarksPer = 0;
     let avgAssMarksPer = 0;
-    
+
     let presentCount = 0;
     let absentCount = 0;
 
@@ -1472,7 +1542,7 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
                   ? "D"
                   : "F",
       },
-      attendance: {classes, avgAttendencePer, presentCount, absentCount}
+      attendance: { classes, avgAttendencePer, presentCount, absentCount }
     });
   } catch (err) {
     next(err);

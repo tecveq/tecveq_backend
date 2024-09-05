@@ -132,7 +132,7 @@ exports.getAssignmentsOfClassroomOfTeacher = async (req, res, next) => {
 exports.getAllAssignmentsOfTeacher = async (req, res, next) => {
   const createdBy = req.user._id;
   try {
-    const assignments = await Assignment.find({ createdBy });
+    const assignments = await Assignment.find({ createdBy }).populate({path: "classroomID", model: "Classroom"});
     res.send(assignments);
   } catch (error) {
     next(error);

@@ -327,7 +327,7 @@ exports.getQuizForGrading = async (req, res, next) => {
     const students = classroom.students;
 
     // return all students of classroom and check if they have submitted the quiz
-    const submissions = students.map(async (studentID) => {
+    const submissions = students.map((studentID) => {
       const submission = quiz.submissions.find(
         (s) => s.studentID._id.toString() == studentID._id.toString()
       );
