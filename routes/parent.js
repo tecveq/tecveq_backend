@@ -9,6 +9,11 @@ parentRouter.get(
   parentController.getStudentReportForParent
 );
 parentRouter.get(
+  "/student-subjects/:studentID",
+  isStudentChild,
+  parentController.getChilSubjects
+);
+parentRouter.get(
   "/chats/:studentID",
   isStudentChild,
   parentController.getParentChats

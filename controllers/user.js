@@ -131,7 +131,7 @@ exports.updateUser = async (req, res, next) => {
 };
 
 exports.getUsersNotInClassroom = async (req, res, next) => {
-  console.log(req.user);
+  // console.log(req.user);
   try {
     const { levelID } = req.params;
 
@@ -194,7 +194,7 @@ exports.getUsers = async (req, res, next) => {
 exports.acceptUser = async (req, res, next) => {
   try {
     const { userID } = req.params;
-    console.log(userID);
+    // console.log(userID);
     const user = await User.findByIdAndUpdate(
       userID,
       { isAccepted: true },
@@ -818,7 +818,7 @@ exports.getStudentSubjects = async (req, res, next) => {
     subjects.map((sub) => {
       classes.map((cls) => {
         if (sub.subject._id.toString() == cls.subjectID.toString()) {
-          console.log(" inside if ");
+          // console.log(" inside if ");
           matched = true
           newobj = { ...sub, attendance: cls }
           newData.push(newobj);
@@ -830,7 +830,7 @@ exports.getStudentSubjects = async (req, res, next) => {
       }
     })
 
-    console.log("new subs are : ", newData);
+    // console.log("new subs are : ", newData);
 
     res.send(subjects);
   } catch (err) {
@@ -1447,7 +1447,7 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
 
     const classes = await Class.aggregate(pipeline);
 
-    console.log("class report data is ; ", classes);
+    // console.log("class report data is ; ", classes);
 
 
     // console.log("report array with quiz", userAssignmentsAndQuizzes[0])

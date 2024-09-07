@@ -60,10 +60,10 @@ app.use(
       mongoUrl: process.env.MONGO_CONNECTION,
     }),
     saveUninitialized: true,
-    // cookie: {
-    //   secure: true,
-    //   sameSite: "none",
-    //   },
+    cookie: {
+      secure: true,
+      sameSite: "none",
+      },
   })
 );
 
@@ -90,8 +90,8 @@ app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     success: true,
-    lastCount:9,
-    count: 10,
+    lastCount:10,
+    count: 11,
     message: "Backend live on AWS!"
   })
 });
@@ -120,7 +120,7 @@ app.use(function (err, req, res, next) {
 });
 
 const db = process.env.MONGO_CONNECTION;
-mongoose.connect(db,  { useNewUrlParser: true, useUnifiedTopology: true }, (err) => {
+mongoose.connect(db,  { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true }, (err) => {
   if (err) {
     console.log(err);
   } else {
@@ -128,52 +128,43 @@ mongoose.connect(db,  { useNewUrlParser: true, useUnifiedTopology: true }, (err)
   }
 });
 
-// var port = 443;
-var port = 4000;
+var port = 443;
+// var port = 4000;
 // var port = normalizePort(process.env.PORT || "3001");
-// app.set("port", port);
 
-// // production
-// const sslOptions = {
-//   key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
-//   cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem")
-// }
+//////////// // production
+const sslOptions = {
+  key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
+  cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem")
+}
 // /////////////////////////// Production
 
-// development
-var server = http.createServer(app);
+// //////////////development
+// var server = http.createServer(app);
 // //////////////////// developent
 
-// production
-// var server = https.createServer(sslOptions, app)
+// //////////// production
+var server = https.createServer(sslOptions, app);
 //////////////////////////
 
-// create socket
-// const io = require("socket.io")(server, {
-//   cors: {
-//     origin: process.env.CLIENT_BASE_URL,
-//     methods: ["GET", "POST"],
-//   },
-// });
-// initializeSocket(io);
 io.attach(server);
 
-// development
-server.listen(port, () =>{
-  console.log(`Server is running on port ${port}`);
-});
+// ////////////// development
+// server.listen(port, () =>{
+//   console.log(`Server is running on port ${port}`);
+// });
 ////////////////////////////////
 
-// production
-// server.listen(443, () =>{
-//   console.log(`AWS Server is running on port ${443}`);
-// });
+// ///////////// production
+server.listen(443, () =>{
+  console.log(`AWS Server is running on port ${443}`);
+});
 
 
-// http.createServer((req, res) => {
-//   res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
-//   res.end();
-// }).listen(80);
+http.createServer((req, res) => {
+  res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
+  res.end();
+}).listen(80);
 ////////////////////////////////
 
 server.on("error", onError);

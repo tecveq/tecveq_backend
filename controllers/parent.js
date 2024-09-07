@@ -4,6 +4,7 @@ const Assignment = require("../models/assignment");
 const Quiz = require("../models/quiz");
 const Chatroom = require("../models/chatroom");
 const mongoose = require("mongoose");
+const Class = require("../models/class");
 
 exports.getStudentReportForParent = async (req, res, next) => {
   try {
@@ -14,6 +15,7 @@ exports.getStudentReportForParent = async (req, res, next) => {
 
     // get assignments and quizes of the student for that classroom of the teacher of the subject
     const classroom = await Classroom.findById(classroomID);
+    console.log("classroom is : ", classroomID);
     const teacher = classroom.teachers.find(
       (teacher) =>
         teacher.teacher.toString() == teacherID &&
@@ -34,8 +36,14 @@ exports.getStudentReportForParent = async (req, res, next) => {
       submissions: { $elemMatch: { studentID, marks: { $exists: true } } },
     });
 
+    const classes = await Class.find({
+      classroomID,
+      subjectID
+    });
+
     let avgAssMarksPer = 0;
     let avgQuizMarksPer = 0;
+    let avgAttendancePer = 0;
     if (assignments.length > 0) {
       avgAssMarksPer = (
         (assignments.reduce(
@@ -65,6 +73,22 @@ exports.getStudentReportForParent = async (req, res, next) => {
       ).toFixed(0);
     }
 
+    if (classes.length > 0) {
+      avgAttendancePer = (
+        (classes.reduce(
+          (total, classs) =>
+            total +
+            classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true? 1 : 0,
+          0
+        ) /
+          classes.reduce(
+            (total, classs) => total + classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true? 1 : 1, 0
+          )
+        ) *
+        100
+      ).toFixed(0);
+    }
+
     res.send({
       user: user._doc,
       averageAssignmentMarks: {
@@ -73,12 +97,12 @@ exports.getStudentReportForParent = async (req, res, next) => {
           avgAssMarksPer > 90
             ? "A"
             : avgAssMarksPer > 80
-            ? "B"
-            : avgAssMarksPer > 70
-            ? "C"
-            : avgAssMarksPer > 60
-            ? "D"
-            : "F",
+              ? "B"
+              : avgAssMarksPer > 70
+                ? "C"
+                : avgAssMarksPer > 60
+                  ? "D"
+                  : "F",
       },
       averageQuizMarks: {
         percentage: avgQuizMarksPer,
@@ -86,16 +110,18 @@ exports.getStudentReportForParent = async (req, res, next) => {
           avgQuizMarksPer > 90
             ? "A"
             : avgQuizMarksPer > 80
-            ? "B"
-            : avgQuizMarksPer > 70
-            ? "C"
-            : avgQuizMarksPer > 60
-            ? "D"
-            : "F",
+              ? "B"
+              : avgQuizMarksPer > 70
+                ? "C"
+                : avgQuizMarksPer > 60
+                  ? "D"
+                  : "F",
       },
+      avgAttendancePer,
       assignments: assignments.map((ass) => {
         return {
           totalMarks: ass.totalMarks,
+          title: ass.title,
           marksObtained: ass.submissions.find(
             (sub) => sub.studentID.toString() == studentID
           ).marks,
@@ -104,11 +130,23 @@ exports.getStudentReportForParent = async (req, res, next) => {
       quizes: quizes.map((ass) => {
         return {
           totalMarks: ass.totalMarks,
+          title: ass.title,
           marksObtained: ass.submissions.find(
             (sub) => sub.studentID.toString() == studentID
           ).marks,
         };
       }),
+
+      attendance: classes.map((cls) => {
+        return {
+          className: cls.title,
+          startTime: cls.startTime,
+          endTime: cls.endTime,
+          attendancePercentage: cls.attendance.find(
+            (att) => att.studentID.toString() == studentID
+          )
+        }
+      })
     });
   } catch (error) {
     next(error);
@@ -172,6 +210,77 @@ exports.getChildrenOfParent = async (req, res, next) => {
     res.send(children);
   } catch (error) {
     next(error);
+  }
+};
+
+exports.getChilSubjects = async (req, res, next) => {
+  try {
+    const { studentID } = req.params;
+
+    const classrooms = await Classroom.find({ students: studentID })
+      .populate("teachers.subject")
+      .populate("teachers.teacher");
+
+    const subjects = classrooms.reduce((result, classroom) => {
+      if (classroom.teachers && classroom.teachers.length > 0) {
+        classroom.teachers.forEach((teacher) => {
+          if (teacher.subject) {
+            result.push({
+              subject: teacher.subject,
+              teacher: teacher.teacher,
+              classroom: classroom
+            });
+          }
+        });
+      }
+      return result;
+    }, []);
+
+    const classes = await Class.find({
+      attendance: {$elemMatch: {studentID: studentID}}
+    });
+
+    let matched = false;
+
+    let newarr = []; 
+    subjects.map((item) =>{
+      classes.map((cls) =>{
+
+        if(cls.subjectID.toString() == item.subject._id.toString()){
+
+          let avgAttendancePer = (
+            (classes.reduce((total, classs) => {
+              const attendanceRecord = classs.attendance.find(
+                (sub) => sub.studentID.toString() === studentID.toString()
+              );
+              return total + (attendanceRecord && attendanceRecord.isPresent ? 1 : 0);
+            }, 0) /
+              classes.reduce((total, classs) => {
+                const attendanceRecord = classs.attendance.find(
+                  (sub) => sub.studentID.toString() === studentID.toString()
+                );
+                // Count the class if the attendance record for this student exists
+                return total + (attendanceRecord ? 1 : 0);
+              }, 0)) *
+            100
+          ).toFixed(0);
+      
+          let myobj = {...item, classs: cls, avgAttendancePer}
+          matched = true;
+          newarr.push(myobj);
+        }
+      });
+      if(matched){
+        matched = false;
+      }else{
+        newarr.push(item);
+      }
+    })
+
+    res.send({subjects:newarr} );
+    // res.send(subjects);
+  } catch (err) {
+    next(err);
   }
 };
 

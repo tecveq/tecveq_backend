@@ -18,7 +18,7 @@ const chatroomSchema = new mongoose.Schema({
     {
       sentBy: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Message",
+        ref: "User",
       },
       type: {
         type: String,
@@ -36,8 +36,8 @@ const chatroomSchema = new mongoose.Schema({
   ],
   lastMsg: {
     sentBy: { type: mongoose.Types.ObjectId, ref: "User" },
-    date: { type: Date },
-    messageType: {
+    time: { type: Date },
+    type: {
       type: String,
     },
     message: { type: String },
