@@ -770,33 +770,6 @@ exports.getStudentSubjects = async (req, res, next) => {
       .populate("teachers.subject")
       .populate("teachers.teacher");
 
-    // const classes = await Class.find({
-    //   classroomID: { $in: classrooms.map((classroom) => classroom._id) },
-    //   attendance: {$elemMatch: {studentID: student._id}}
-    // })
-
-    const classes = await Class.aggregate([
-      {
-        $match: {
-          classroomID: { $in: classrooms.map((classroom) => classroom._id) },
-        }
-      },
-      {
-        $project: {
-          subjectID: 1,
-          attendance: {
-            $filter: {
-              input: "$attendance",
-              as: "attendence",
-              cond: {
-                $eq: ["$$attendence.studentID", student._id]
-              }
-            }
-          }
-        }
-      }
-    ])
-
     const subjects = classrooms.reduce((result, classroom) => {
       if (classroom.teachers && classroom.teachers.length > 0) {
         classroom.teachers.forEach((teacher) => {
@@ -811,28 +784,52 @@ exports.getStudentSubjects = async (req, res, next) => {
       return result;
     }, []);
 
-    let newData = []
-    let newobj = {}
+
+    
+    const classes = await Class.find({
+      attendance: {$elemMatch: {studentID: studentID}}
+    });
+
     let matched = false;
 
-    subjects.map((sub) => {
-      classes.map((cls) => {
-        if (sub.subject._id.toString() == cls.subjectID.toString()) {
-          // console.log(" inside if ");
-          matched = true
-          newobj = { ...sub, attendance: cls }
-          newData.push(newobj);
+    let newarr = []; 
+    subjects.map((item) =>{
+      classes.map((cls) =>{
+
+        if(cls.subjectID.toString() == item.subject._id.toString()){
+
+          let avgAttendancePer = (
+            (classes.reduce((total, classs) => {
+              const attendanceRecord = classs.attendance.find(
+                (sub) => sub.studentID.toString() === studentID.toString()
+              );
+              return total + (attendanceRecord && attendanceRecord.isPresent ? 1 : 0);
+            }, 0) /
+              classes.reduce((total, classs) => {
+                const attendanceRecord = classs.attendance.find(
+                  (sub) => sub.studentID.toString() === studentID.toString()
+                );
+                // Count the class if the attendance record for this student exists
+                return total + (attendanceRecord ? 1 : 0);
+              }, 0)) *
+            100
+          ).toFixed(0);
+      
+          let myobj = {...item, classs: cls, avgAttendancePer}
+          matched = true;
+          newarr.push(myobj);
         }
-      })
-      if (!matched) {
-        newData.push(sub);
+      });
+      if(matched){
         matched = false;
+      }else{
+        newarr.push(item);
       }
     })
 
-    // console.log("new subs are : ", newData);
+    console.log("new array is : ", newarr);
 
-    res.send(subjects);
+    res.send({subjects: newarr});
   } catch (err) {
     next(err);
   }
