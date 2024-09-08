@@ -370,6 +370,22 @@ exports.cancelClass = async (req, res, next) => {
   }
 };
 
+exports.markTeacherPresent = async (req, res, next) => {
+  try {
+
+    // find class by id
+    const classs = await Class.findByIdAndUpdate(req.params.id, {$set: {"teacher.status": "present"}}, {new:true});
+
+    if (!classs) {
+      return res.status(404).send("Class does not exist");
+    }
+
+    return res.status(200).send(classs._doc);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getClasses = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;

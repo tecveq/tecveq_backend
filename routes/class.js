@@ -6,6 +6,9 @@ classRouter.post("/", classController.createClass);
 
 classRouter.get("/", classController.getClasses);
 
+// mark teacher present in the class
+classRouter.get("/mark/:id", classController.markTeacherPresent);
+
 // today classes for attendence ==> get-classes-for-attendence
 classRouter.get("/get-today-classes", classController.getTodayClasses);
 
