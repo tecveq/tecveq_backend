@@ -902,14 +902,14 @@ exports.getTeachersForAdmin = async (req, res, next) => {
     // push all assignments and quize to specific teacher in teachers in classroom
     const teachersInClassroom = classrooms.reduce((result, classroom) => {
       classroom.teachers.forEach((teacher) => {
-        if (!result[teacher.teacher._id]) {
-          result[teacher.teacher._id] = [];
+        if (!result[teacher?.teacher?._id]) {
+          result[teacher?.teacher?._id] = [];
         }
 
         let classData = classes.filter((c) => {
           return (
-            c.teacher.teacherID.toString() == teacher.teacher._id.toString() &&
-            c.classroomID == classroom._id.toString()
+            c.teacher?.teacherID.toString() == teacher?.teacher?._id.toString() &&
+            c.classroomID == classroom?._id?.toString()
           )
         });
         let attendnececount = {};
@@ -918,8 +918,8 @@ exports.getTeachersForAdmin = async (req, res, next) => {
 
         let ass = assignments.filter((a) => {
           return (
-            a.createdBy.toString() == teacher.teacher._id.toString() &&
-            a.classroomID.toString() == classroom._id.toString()
+            a.createdBy.toString() == teacher?.teacher?._id.toString() &&
+            a.classroomID.toString() == classroom?._id.toString()
           );
         });
 
@@ -930,8 +930,8 @@ exports.getTeachersForAdmin = async (req, res, next) => {
 
         let qui = quizes.filter((a) => {
           return (
-            a.createdBy.toString() == teacher.teacher._id.toString() &&
-            a.classroomID.toString() == classroom._id.toString()
+            a.createdBy.toString() == teacher?.teacher?._id.toString() &&
+            a.classroomID.toString() == classroom?._id.toString()
           );
         });
 
@@ -940,7 +940,7 @@ exports.getTeachersForAdmin = async (req, res, next) => {
             return total + asi.average.percentage;
           }, 0) / qui.length;
 
-        result[teacher.teacher._id].push({
+        result[teacher?.teacher?._id].push({
           attendence: {
             classData,
             attendnececount
@@ -989,6 +989,7 @@ exports.getTeachersForAdmin = async (req, res, next) => {
 
     // res.send({ groupedAssignments, groupedQuizes });
   } catch (err) {
+    console.log("error while getting all teacher si : ", err);
     next(err);
   }
 };

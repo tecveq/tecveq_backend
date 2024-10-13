@@ -21,9 +21,10 @@ exports.createClass = async (req, res, next) => {
     const startTime = new Date(data.startTime);
     const endTime = new Date(data.endTime);
     // check if start time is on weekend
-    if (startTime.getDay() === 0 || startTime.getDay() === 6) {
-      return res.status(400).send("Class cannot hold on weekend");
-    }
+    
+    // if (startTime.getDay() === 0 || startTime.getDay() === 6) {
+    //   return res.status(400).send("Class cannot hold on weekend");
+    // }
 
     const teacherHasClass = await Class.findOne({
       "teacher.teacherID": teacher,
