@@ -21,7 +21,7 @@ exports.createClass = async (req, res, next) => {
     const startTime = new Date(data.startTime);
     const endTime = new Date(data.endTime);
     // check if start time is on weekend
-    
+
     // if (startTime.getDay() === 0 || startTime.getDay() === 6) {
     //   return res.status(400).send("Class cannot hold on weekend");
     // }
@@ -158,14 +158,14 @@ exports.createClass = async (req, res, next) => {
 
     console.log("before meet creation");
 
-    // let authClient = await authorize();
-    // console.log("after meet auth");
-    // let meetlink = await createSpace(authClient);
-    // console.log("meeting link data is : ", meetlink);
+    let authClient = await authorize();
+    console.log("after meet auth");
+    let meetlink = await createSpace(authClient);
+    console.log("meeting link data is : ", meetlink);
 
 
 
-    // let participants = [];
+    let participants = [];
     // setTimeout(async () => {
     //   participants = await getMeetingParticipents(authClient, meetlink);
     //   for await (const response of participants) {
@@ -174,8 +174,8 @@ exports.createClass = async (req, res, next) => {
     //   console.log("participants are : ", participants);
     // }, 10000);
 
-    // const classs = new Class({ ...data, createdBy: req.user._id, meetLink: meetlink.meetingUri });
-    const classs = new Class({ ...data, createdBy: req.user._id, meetLink: "https://meet.google.com/zfe-dbds-ezv" });
+    const classs = new Class({ ...data, createdBy: req.user._id, meetLink: meetlink.meetingUri });
+    // const classs = new Class({ ...data, createdBy: req.user._id, meetLink: "https://meet.google.com/zfe-dbds-ezv" });
     await classs.save();
 
     return res.status(201).send(classs._doc);

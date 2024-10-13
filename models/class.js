@@ -55,6 +55,9 @@ const classSchema = new mongoose.Schema({
       isPresent: {
         type: Boolean,
       },
+      late: {
+        type: Boolean
+      }
     },
   ],
 });
