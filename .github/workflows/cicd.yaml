@@ -15,9 +15,9 @@ jobs:
       - name: Login to Docker Hub
         run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
       - name: Build Docker Image
-        run: docker build --no-cache -t muneebjutt121/tca-test .
+        run: docker build --no-cache -t timetechnologiesllc/tca_prod .
       - name: Publish this image to docker hub
-        run: docker push muneebjutt121/tca-test:latest
+        run: docker push timetechnologiesllc/tca_prod:latest
 
   deploy:
     needs: build
@@ -46,14 +46,14 @@ jobs:
             sudo systemctl stop nginix || true
             sudo systemctl stop apache2 || true
 
-            sudo certbot certonly --standalone --non-interactive --agree-tos --email muneebjutt026@gmail.com -d 	manolms.com
+            sudo certbot certonly --standalone --non-interactive --agree-tos --email timetechnologiesllc@gmail.com -d 	manolms.com
 
             CERT_PATH="/etc/letsencrypt/live/manolms.com/fullchain.pem"
             KEY_PATH="/etc/letsencrypt/live/manolms.com/privkey.pem"
 
-            docker pull muneebjutt121/tca-test:latest
+            docker pull timetechnologiesllc/tca_prod:latest
             docker rm -f tca-container
-            docker run -d -p 80:80 -p 443:443 --name tca-container -v $CERT_PATH:/etc/letsencrypt/live/manolms.com/fullchain.pem -v $KEY_PATH:/etc/letsencrypt/live/manolms.com/privkey.pem  -e MONGO_CONNECTION='${{ secrets.MONGO_URI }}' -e PORT='${{ secrets.PORT }}' -e CLIENT_BASE_URL='${{secrets.CLIENT_BASE_URL}}' muneebjutt121/tca-test
+            docker run -d -p 80:80 -p 443:443 --name tca-container -v $CERT_PATH:/etc/letsencrypt/live/manolms.com/fullchain.pem -v $KEY_PATH:/etc/letsencrypt/live/manolms.com/privkey.pem  -e MONGO_CONNECTION='${{ secrets.MONGO_URI }}' -e PORT='${{ secrets.PORT }}' -e CLIENT_BASE_URL='${{secrets.CLIENT_BASE_URL}}' timetechnologiesllc/tca_prod
 
  
   renew_ssl:
