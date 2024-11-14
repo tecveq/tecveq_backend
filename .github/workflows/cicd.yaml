@@ -55,7 +55,7 @@ jobs:
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
             docker pull timetechnologiesllc/tca_prod:latest
-            docker rm -f tca-container
+            #docker rm -f tca-container
             docker run -d -p 80:80 -p 443:443 --name tca-container -v $CERT_PATH:/etc/letsencrypt/live/manolms.com/fullchain.pem -v $KEY_PATH:/etc/letsencrypt/live/manolms.com/privkey.pem  -e MONGO_CONNECTION='${{ secrets.MONGO_URI }}' -e PORT='${{ secrets.PORT }}' -e CLIENT_BASE_URL='${{secrets.CLIENT_BASE_URL}}' timetechnologiesllc/tca_prod
 
  
