@@ -47,9 +47,12 @@ jobs:
             sudo systemctl stop apache2 || true
 
             sudo certbot certonly --standalone --non-interactive --agree-tos --email timetechnologiesllc@gmail.com -d 	manolms.com
-
+            
             CERT_PATH="/etc/letsencrypt/live/manolms.com/fullchain.pem"
             KEY_PATH="/etc/letsencrypt/live/manolms.com/privkey.pem"
+
+          
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
             docker pull timetechnologiesllc/tca_prod:latest
             docker rm -f tca-container
