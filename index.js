@@ -32,25 +32,26 @@ const quizRouter = require("./routes/quiz");
 const { io } = require("./utils/socket");
 const { checkLoggedIn } = require("./middlewares/checkLoggedIn");
 const authRouter = require("./routes/auth");
-
 var app = express();
-
+let isProduction = process.env.NODE_ENV == "production";
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-
 app.use(
   cors({
     credentials: true,
-    origin: ["https://tca-portal.netlify.app", "https://tca-test-deploy.vercel.app", "http://localhost:5173", "*"],
-    methods: ["GET", "POST", "PUT", "DELETE","OPTIONS"],
+    origin: [
+      "https://tca-portal.netlify.app",
+      "https://tca-test-deploy.vercel.app",
+      "http://localhost:5173",
+      "*",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
 app.use(express.static(path.join(__dirname, "public")));
-
 app.use(
   session({
     name: "finSess",
@@ -60,17 +61,21 @@ app.use(
       mongoUrl: process.env.MONGO_CONNECTION,
     }),
     saveUninitialized: true,
-    cookie: {
-      secure: true,
-      sameSite: "none",
+    cookie: isProduction
+      ? {
+        secure: true,
+        sameSite: "none",
+      }
+      : {
+        sameSite: "lax", // "none" for cross-origin, "lax" for development
+        httpOnly: true, // Prevent JavaScript access to cookies
+
       },
   })
 );
-
 app.use(passport.initialize());
 initializingPassport(passport);
 app.use(passport.session());
-
 // api routes
 app.use("/api/auth/", authRouter);
 app.use("/api/level/", levelRouter);
@@ -85,29 +90,25 @@ app.use("/api/notification/", checkLoggedIn, notificationRouter);
 app.use("/api/announcement/", checkLoggedIn, announcementRouter);
 app.use("/api/parent", require("./routes/parent"));
 app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
-
 app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     success: true,
-    lastCount:18,
-    count: 19,
-    message: "Backend live on AWS!"
-  })
+    lastCount: 17,
+    count: 18,
+    message: "Backend live on AWS!",
+  });
 });
-
 app.get("/developers", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
-    developers: ["Mustafa", "Muneeb", "Hassan"]
-  })
+    developers: ["Mustafa", "Muneeb", "Hassan"],
+  });
 });
-
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
 });
-
 // error handler
 app.use(function (err, req, res, next) {
   // set locals, only providing error in development
@@ -118,81 +119,64 @@ app.use(function (err, req, res, next) {
   res.status(err.status || 500);
   res.send(err);
 });
-
 const db = process.env.MONGO_CONNECTION;
-mongoose.connect(db,  { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true }, (err) => {
-  if (err) {
-    console.log(err);
+mongoose.connect(
+  db,
+  { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true },
+  (err) => {
+    if (err) {
+      console.log(err);
+    } else {
+      console.log("Connected to MongoDB");
+    }
+  }
+);
+var port = isProduction ? 443 : 4000;
+const sslOptions = isProduction
+  ? {
+    key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem"),
+  }
+  : undefined;
+var server = isProduction
+  ? https.createServer(sslOptions, app)
+  : http.createServer(app);
+io.attach(server);
+server.listen(port, () => {
+  if (isProduction) {
+    console.log(`AWS Server is running on port ${443}`);
   } else {
-    console.log("Connected to MongoDB");
+    console.log(`Server is running on port ${port}`);
   }
 });
-
-var port = 443;
-// var port = 4000;
-// var port = normalizePort(process.env.PORT || "3001");
-
-//////////// // production
-const sslOptions = {
-  key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem")
-}
-// /////////////////////////// Production
-
-// //////////////development
-// var server = http.createServer(app);
-// //////////////////// developent
-
-// //////////// production
-var server = https.createServer(sslOptions, app);
-//////////////////////////
-
-io.attach(server);
-
-// ////////////// development
-// server.listen(port, () =>{
-//   console.log(`Server is running on port ${port}`);
-// });
-////////////////////////////////
-
-// ///////////// production
-server.listen(443, () =>{
-  console.log(`AWS Server is running on port ${443}`);
-});
-
-
-http.createServer((req, res) => {
-  res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
-  res.end();
-}).listen(80);
-////////////////////////////////
-
+isProduction &&
+  http
+    .createServer((req, res) => {
+      res.writeHead(301, {
+        Location: "https://" + req.headers["host"] + req.url,
+      });
+      res.end();
+    })
+    .listen(80);
 server.on("error", onError);
 server.on("listening", onListening);
-
 function normalizePort(val) {
   var port = parseInt(val, 10);
-
   if (isNaN(port)) {
     // named pipe
     return val;
   }
-
   if (port >= 0) {
     // port number
     return port;
   }
-
   return false;
 }
-
 function onError(error) {
   if (error.syscall !== "listen") {
     throw error;
   }
-
   var bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
-
   // handle specific listen errors with friendly messages
   switch (error.code) {
     case "EACCES":
@@ -207,9 +191,18 @@ function onError(error) {
       throw error;
   }
 }
-
 function onListening() {
   var addr = server.address();
   var bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
   debug("Listening on " + bind);
 }
+
+
+
+
+
+
+
+
+
+
