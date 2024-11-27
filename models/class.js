@@ -32,6 +32,14 @@ const classSchema = new mongoose.Schema({
     ref: "Subject",
     required: true,
   },
+  startEventDate: {
+    type: Date,
+    required: true,
+  },
+  endEventDate: {
+    type: Date,
+    required: true,
+  },
   teacher: {
     teacherID: {
       type: mongoose.Schema.Types.ObjectId,
@@ -43,7 +51,7 @@ const classSchema = new mongoose.Schema({
       enum: ["present", "absent", "leave"],
     },
   },
-  meetLink: {
+  meetingUrl: {
     type: String,
   },
   attendance: [

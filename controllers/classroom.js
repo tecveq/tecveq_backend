@@ -8,6 +8,9 @@ exports.createClassroom = async (req, res, next) => {
   try {
     const data = req.body;
 
+    const { headTeacher } = data;
+
+
     if (
       !data.name ||
       !data.students ||
@@ -92,16 +95,22 @@ exports.createClassroom = async (req, res, next) => {
       }
     }
 
+    if (headTeacher) {
+      data.teachers = data.teachers.map((teacher) => ({
+        ...teacher,
+        type: teacher.teacher === headTeacher ? "head" : "teacher",
+      }));
+    }
+
     const classroom = new Classroom({ ...data, createdBy: currUser._id });
 
     await classroom.save();
 
     await teachers.map(async (tea) => {
-      const chatname = `${data.name} ${
-        currUser.userType == "teacher"
-          ? " - " + subject.name
-          : (await Subject.findOne({ _id: tea.subject })).name
-      }`;
+      const chatname = `${data.name} ${currUser.userType == "teacher"
+        ? " - " + subject.name
+        : (await Subject.findOne({ _id: tea.subject })).name
+        }`;
 
       await Chatroom.create({
         participants: [...students, tea.teacher],
@@ -318,11 +327,10 @@ exports.updateClassroom = async (req, res, next) => {
           (teac) => teac.teacher.toString() == tea.teacher.toString()
         )
       ) {
-        const chatname = `${data.name} ${
-          currUser.userType == "teacher"
-            ? " - " + subject.name
-            : (await Subject.findOne({ _id: tea.subject })).name
-        }`;
+        const chatname = `${data.name} ${currUser.userType == "teacher"
+          ? " - " + subject.name
+          : (await Subject.findOne({ _id: tea.subject })).name
+          }`;
 
         await Chatroom.create({
           participants: [...students, tea.teacher],
@@ -362,11 +370,10 @@ exports.updateClassroom = async (req, res, next) => {
     await classroom.save();
 
     await teachers.map(async (tea) => {
-      const chatname = `${data.name} ${
-        currUser.userType == "teacher"
-          ? " - " + subject.name
-          : (await Subject.findOne({ _id: tea.subject })).name
-      }`;
+      const chatname = `${data.name} ${currUser.userType == "teacher"
+        ? " - " + subject.name
+        : (await Subject.findOne({ _id: tea.subject })).name
+        }`;
 
       await Chatroom.create({
         participants: [...students, tea.teacher],
