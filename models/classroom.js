@@ -37,20 +37,7 @@ const classroomSchema = new mongoose.Schema({
     },
   ],
 
-  // attendance: [
-  //   {
-  //     studentID: {
-  //       type: mongoose.Schema.Types.ObjectId,
-  //       ref: "User",
-  //     },
-  //     isPresent: {
-  //       type: Boolean,
-  //     },
-  //     late: {
-  //       type: Boolean
-  //     }
-  //   },
-  // ]
+ 
 });
 
 const Classroom = mongoose.model("Classroom", classroomSchema);
