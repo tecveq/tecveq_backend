@@ -41,12 +41,9 @@ app.use(cookieParser());
 app.use(
   cors({
     credentials: true,
-    origin: [
-      "https://tca-portal.netlify.app",
-      "https://tca-test-deploy.vercel.app",
-      "http://localhost:5173",
-      "*",
-    ],
+    origin: isProduction
+      ? ["https://your-production-site.com"]  // Production URLs only
+      : ["http://localhost:5173", "*"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

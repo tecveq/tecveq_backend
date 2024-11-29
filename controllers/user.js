@@ -13,55 +13,49 @@ exports.register = async (req, res, next) => {
   try {
     const data = req.body;
 
+    // Check if the user already exists
     const foundUser = await User.findOne({ email: data.email });
-
     if (foundUser) {
       return res.status(401).send("User already exists");
     }
 
-    if (data.userType != "student" && data.userType != "teacher") {
+    // Validate userType
+    if (data.userType !== "student" && data.userType !== "teacher") {
       return res.status(400).send("Invalid user type");
     }
 
-    if (
-      !data.name ||
-      !data.email ||
-      !data.password ||
-      !data.userType ||
-      !data.phoneNumber
-    ) {
+    // Validate required fields
+    if (!data.name || !data.email || !data.password || !data.userType || !data.phoneNumber) {
       return res.status(400).send("All fields are required");
     }
 
+    // Additional validations for student
     if (data.userType === "student") {
       if (!data.levelID) {
         return res.status(400).send("Level is required");
       }
-      if (
-        !data.guardianName ||
-        !data.guardianEmail ||
-        !data.guardianPhoneNumber
-      ) {
+      if (!data.guardianName || !data.guardianEmail || !data.guardianPhoneNumber) {
         return res.status(400).send("Guardian details are required");
       }
     }
 
-    if (data.userType === "teacher") {
-      if (!data.qualification || !data.cv) {
-        return res.status(400).send("Qualification and CV are required");
-      }
-    }
+    // Optional fields for teacher
+    // if (data.userType === "teacher") {
+    //   if (!data.qualification || !data.cv) {
+    //     return res.status(400).send("Qualification and CV are required");
+    //   }
+    // }
 
+    // Hash password
     data["password"] = bcrypt.hashSync(data.password, 8);
 
-    const user = new User(req.body);
-
+    // Save user data
+    const user = new User(data);
     await user.save();
 
-    if (data.userType == "student") {
-      // check if the parent already exists
+    // Create parent account for student
+    if (data.userType === "student") {
       const parent = await User.findOne({ email: data.guardianEmail });
-
       if (!parent) {
         const parentAccount = new User({
           name: data.guardianName,
@@ -73,6 +67,7 @@ exports.register = async (req, res, next) => {
         await parentAccount.save();
       }
     }
+
     res.send({ ...user._doc, password: undefined });
   } catch (err) {
     next(err);
@@ -785,18 +780,18 @@ exports.getStudentSubjects = async (req, res, next) => {
     }, []);
 
 
-    
+
     const classes = await Class.find({
-      attendance: {$elemMatch: {studentID: studentID}}
+      attendance: { $elemMatch: { studentID: studentID } }
     });
 
     let matched = false;
 
-    let newarr = []; 
-    subjects.map((item) =>{
-      classes.map((cls) =>{
+    let newarr = [];
+    subjects.map((item) => {
+      classes.map((cls) => {
 
-        if(cls.subjectID.toString() == item.subject._id.toString()){
+        if (cls.subjectID.toString() == item.subject._id.toString()) {
 
           let avgAttendancePer = (
             (classes.reduce((total, classs) => {
@@ -814,22 +809,22 @@ exports.getStudentSubjects = async (req, res, next) => {
               }, 0)) *
             100
           ).toFixed(0);
-      
-          let myobj = {...item, classs: cls, avgAttendancePer}
+
+          let myobj = { ...item, classs: cls, avgAttendancePer }
           matched = true;
           newarr.push(myobj);
         }
       });
-      if(matched){
+      if (matched) {
         matched = false;
-      }else{
+      } else {
         newarr.push(item);
       }
     })
 
     console.log("new array is : ", newarr);
 
-    res.send({subjects: newarr});
+    res.send({ subjects: newarr });
   } catch (err) {
     next(err);
   }
