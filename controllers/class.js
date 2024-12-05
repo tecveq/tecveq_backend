@@ -1,8 +1,12 @@
 const Subject = require("../models/subject");
 const Classroom = require("../models/classroom");
 const Class = require("../models/class");
+const Notification = require("../models/notification");
+const Attendance = require("../models/attendence");
 const mongoose = require("mongoose");
 const moment = require("moment");
+
+
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
 
 
@@ -36,12 +40,9 @@ exports.createClass = async (req, res, next) => {
 
     const startDate = moment(startEventDate);
     const endDate = moment(endEventDate);
-
-
-    // if (startDate >= endDate) {
+     // if (startDate >= endDate) {
     //   return res.status(400).json({ error: "End Date must be after start Date" });
     // }
-
     const events = [];
     let currentDate = moment(startDate);
 
@@ -533,23 +534,72 @@ exports.getTodayClasses = async (req, res, next) => {
 };
 
 
+
 exports.submitAttendence = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // Class ID
+    const { data } = req.body; // Attendance data submitted by the teacher
 
-    const { data } = req.body;
-
-    const studentclass = await Class.findById(id);
-    if (!studentclass) {
-      return res.status(404).send("Class not found");
+    // Fetch the class details
+    const studentClass = await Class.findById(id).populate('subjectID');
+    if (!studentClass) {
+      return res.status(404).json({ message: "Class not found" });
     }
 
-    const studentclassdata = await Class.findByIdAndUpdate(id, { attendance: data }, { new: true });
+    // Update attendance for the class
+    await Class.findByIdAndUpdate(id, { attendance: data }, { new: true });
 
-    return res.status(200).send("Class updated successfully!");
+    // Fetch today's start date (ensure it is in UTC)
+    const todayStart = new Date(new Date().setHours(0, 0, 0, 0)); // Start of the day (00:00:00)
+    const todayEnd = new Date(new Date().setHours(23, 59, 59, 999)); // End of the day (23:59:59)
 
+    // Log the date for debugging
+    console.log("Today Start: ", todayStart);
+    console.log("Today End: ", todayEnd);
+
+    // Fetch today's head attendance record
+    const headAttendance = await Attendance.findOne({
+      entityId: studentClass._id,
+      Date: { $gte: todayStart, $lt: todayEnd },
+    });
+
+    if (!headAttendance) {
+      return res.status(400).json({ message: "No head attendance record found for today" });
+    }
+
+    // Compare attendance between head and teacher
+    const absentStudents = data
+      .filter(student => !student.isPresent)
+      .map(student => student.studentID.toString());
+
+    const headPresentStudents = headAttendance.students
+      .filter(student => student.isPresent)
+      .map(student => student.studentID.toString());
+
+    const discrepancyStudents = absentStudents.filter(student =>
+      headPresentStudents.includes(student)
+    );
+
+    if (discrepancyStudents.length > 0) {
+      // Construct the detailed message for the admin notification
+      const classTitle = studentClass.title;
+      const subjectName = studentClass.subjectID.name; // Assuming subjectID has a 'name' field
+
+      const notifications = discrepancyStudents.map(studentID => ({
+        userID: "66a42ad9cdbb401490e297ba", // Admin's User ID
+        message: `Student with ID: ${studentID} is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present in the head attendance.`,
+        url: `/students/${studentID}`, // URL to the student's page
+        deliveredTo: ["66a42ad9cdbb401490e297ba"], // Admin's User ID
+      }));
+
+      // Send notifications
+      await Notification.insertMany(notifications);
+    }
+
+    return res.status(200).json({ message: "Class attendance updated successfully!" });
   } catch (error) {
-    console.log("error is : ", error);
-    return res.status(500).send("Internal server error!");
+    console.error("Error occurred:", error.message);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
   }
-}
+};
+
