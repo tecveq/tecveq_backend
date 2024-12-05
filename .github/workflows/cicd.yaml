@@ -58,7 +58,7 @@ jobs:
             docker system prune -a -f
             docker pull timetechnologiesllc/tca_prod:latest
             
-            docker run -d -p 80:80 -p 443:443 --name tca-container -v $CERT_PATH:/etc/letsencrypt/live/manolms.com/fullchain.pem -v $KEY_PATH:/etc/letsencrypt/live/manolms.com/privkey.pem  -e MONGO_CONNECTION='${{ secrets.MONGO_URI }}' -e PORT='${{ secrets.PORT }}' -e CLIENT_BASE_URL='${{secrets.CLIENT_BASE_URL}}' timetechnologiesllc/tca_prod
+            docker run -d -p 80:80 -p 443:443 --name tca-container -v $CERT_PATH:/etc/letsencrypt/live/manolms.com/fullchain.pem -v $KEY_PATH:/etc/letsencrypt/live/manolms.com/privkey.pem  -e MONGO_CONNECTION='${{ secrets.MONGO_URI }}' -e NODE_ENV='production' -e PORT='${{ secrets.PORT }}' -e CLIENT_BASE_URL='${{secrets.CLIENT_BASE_URL}}' timetechnologiesllc/tca_prod
 
  
   renew_ssl:
