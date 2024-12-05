@@ -29,8 +29,15 @@ const classroomSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Subject",
       },
+      type: {
+        type: String,
+        enum: ["head", "teacher"], // Ensures valid types
+        default: "teacher",       // Default is a regular teacher
+      },
     },
   ],
+
+ 
 });
 
 const Classroom = mongoose.model("Classroom", classroomSchema);

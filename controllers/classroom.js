@@ -8,6 +8,9 @@ exports.createClassroom = async (req, res, next) => {
   try {
     const data = req.body;
 
+    const { headTeacher } = data;
+
+
     if (
       !data.name ||
       !data.students ||
@@ -92,16 +95,22 @@ exports.createClassroom = async (req, res, next) => {
       }
     }
 
+    if (headTeacher) {
+      data.teachers = data.teachers.map((teacher) => ({
+        ...teacher,
+        type: teacher.teacher === headTeacher ? "head" : "teacher",
+      }));
+    }
+
     const classroom = new Classroom({ ...data, createdBy: currUser._id });
 
     await classroom.save();
 
     await teachers.map(async (tea) => {
-      const chatname = `${data.name} ${
-        currUser.userType == "teacher"
-          ? " - " + subject.name
-          : (await Subject.findOne({ _id: tea.subject })).name
-      }`;
+      const chatname = `${data.name} ${currUser.userType == "teacher"
+        ? " - " + subject.name
+        : (await Subject.findOne({ _id: tea.subject })).name
+        }`;
 
       await Chatroom.create({
         participants: [...students, tea.teacher],
@@ -318,11 +327,10 @@ exports.updateClassroom = async (req, res, next) => {
           (teac) => teac.teacher.toString() == tea.teacher.toString()
         )
       ) {
-        const chatname = `${data.name} ${
-          currUser.userType == "teacher"
-            ? " - " + subject.name
-            : (await Subject.findOne({ _id: tea.subject })).name
-        }`;
+        const chatname = `${data.name} ${currUser.userType == "teacher"
+          ? " - " + subject.name
+          : (await Subject.findOne({ _id: tea.subject })).name
+          }`;
 
         await Chatroom.create({
           participants: [...students, tea.teacher],
@@ -362,11 +370,10 @@ exports.updateClassroom = async (req, res, next) => {
     await classroom.save();
 
     await teachers.map(async (tea) => {
-      const chatname = `${data.name} ${
-        currUser.userType == "teacher"
-          ? " - " + subject.name
-          : (await Subject.findOne({ _id: tea.subject })).name
-      }`;
+      const chatname = `${data.name} ${currUser.userType == "teacher"
+        ? " - " + subject.name
+        : (await Subject.findOne({ _id: tea.subject })).name
+        }`;
 
       await Chatroom.create({
         participants: [...students, tea.teacher],
@@ -408,7 +415,7 @@ exports.getClassroomsOfTeacher = async (req, res, next) => {
     const classroomsWithClasses = await Classroom.aggregate([
       {
         $lookup: {
-          from: "users", // Assuming the name of the users collection is "users"
+          from: "users", // Collection where user data (including teachers and students) is stored
           localField: "createdBy",
           foreignField: "_id",
           as: "createdBy",
@@ -441,6 +448,20 @@ exports.getClassroomsOfTeacher = async (req, res, next) => {
           localField: "_id",
           foreignField: "classroomID",
           as: "classes",
+        },
+      },
+      {
+        $lookup: {
+          from: "users", // Assuming students' details are also in the "users" collection
+          localField: "students",
+          foreignField: "_id",
+          as: "studentDetails", // Populate student details here
+        },
+      },
+      {
+        $project: {
+          "createdBy.password": 0, // Exclude sensitive fields from the response
+          "studentDetails.password": 0,
         },
       },
     ]);
