@@ -43,7 +43,7 @@ app.use(
   cors({
     credentials: true,
     origin: isProduction
-      ? ["https://your-production-site.com"]  // Production URLs only
+      ? ["https://your-production-site.com", "*"]  // Production URLs only
       : ["http://localhost:5173", "*"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
