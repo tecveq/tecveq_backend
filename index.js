@@ -33,6 +33,8 @@ const quizRouter = require("./routes/quiz");
 const { io } = require("./utils/socket");
 const { checkLoggedIn } = require("./middlewares/checkLoggedIn");
 const authRouter = require("./routes/auth");
+const Level = require("./models/level");
+const User = require("./models/user");
 var app = express();
 let isProduction = process.env.NODE_ENV == "production";
 app.use(logger("dev"));
@@ -105,6 +107,27 @@ app.get("/developers", (req, res) => {
     developers: ["Mustafa", "Muneeb", "Hassan"],
   });
 });
+
+//check levels in productions
+app.get("/dbHealth", async (req, res) => {
+  try {
+    const levels = await Level.find();
+    const users = await User.find();
+
+    res.status(200).send({
+      success: true,
+      data: levels,
+      user: users
+    });
+  } catch (error) {
+    console.error("Error fetching levels data:", error.message);
+    res.status(500).send({
+      success: false,
+      message: "Failed to fetch data from the levels collection.",
+    });
+  }
+});
+
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
