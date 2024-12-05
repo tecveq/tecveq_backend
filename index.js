@@ -93,8 +93,8 @@ app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     success: true,
-    lastCount: 100,
-    count: 101,
+    lastCount: 101,
+    count: 102,
     message: "Backend live on AWS!",
   });
 
