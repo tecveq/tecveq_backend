@@ -45,7 +45,7 @@ app.use(
   cors({
     credentials: true,
     origin: isProduction
-      ? ["https://tca-frontend-sync-git-main-zees-projects-3a466cf5.vercel.app"]  // Production URLs only
+      ? ["https://tca-frontend-sync-git-main-zees-projects-3a466cf5.vercel.app", "*"]  // Production URLs only
       : ["http://localhost:5173", "*"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -95,10 +95,11 @@ app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
   return res.send({
     success: true,
-    lastCount: 17,
-    count: 18,
+    lastCount: 100,
+    count: 101,
     message: "Backend live on AWS!",
   });
+
 });
 app.get("/developers", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
