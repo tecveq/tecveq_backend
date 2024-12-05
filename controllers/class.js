@@ -38,9 +38,9 @@ exports.createClass = async (req, res, next) => {
     const endDate = moment(endEventDate);
 
 
-    if (startDate >= endDate) {
-      return res.status(400).json({ error: "End Date must be after start Date" });
-    }
+    // if (startDate >= endDate) {
+    //   return res.status(400).json({ error: "End Date must be after start Date" });
+    // }
 
     const events = [];
     let currentDate = moment(startDate);

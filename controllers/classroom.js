@@ -415,7 +415,7 @@ exports.getClassroomsOfTeacher = async (req, res, next) => {
     const classroomsWithClasses = await Classroom.aggregate([
       {
         $lookup: {
-          from: "users", // Assuming the name of the users collection is "users"
+          from: "users", // Collection where user data (including teachers and students) is stored
           localField: "createdBy",
           foreignField: "_id",
           as: "createdBy",
@@ -448,6 +448,20 @@ exports.getClassroomsOfTeacher = async (req, res, next) => {
           localField: "_id",
           foreignField: "classroomID",
           as: "classes",
+        },
+      },
+      {
+        $lookup: {
+          from: "users", // Assuming students' details are also in the "users" collection
+          localField: "students",
+          foreignField: "_id",
+          as: "studentDetails", // Populate student details here
+        },
+      },
+      {
+        $project: {
+          "createdBy.password": 0, // Exclude sensitive fields from the response
+          "studentDetails.password": 0,
         },
       },
     ]);
