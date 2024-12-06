@@ -8,6 +8,7 @@ const Quiz = require("../models/quiz");
 const Device = require("../models/devices");
 const mongoose = require("mongoose");
 const Activity = require("../models/activities");
+const Level = require("../models/level");
 
 exports.register = async (req, res, next) => {
   try {
@@ -73,20 +74,37 @@ exports.register = async (req, res, next) => {
     next(err);
   }
 };
-exports.login = (req, res, next) => {
-  passport.authenticate("local", function (err, foundUser, info) {
+
+exports.login = async (req, res, next) => {
+  passport.authenticate("local", async function (err, foundUser, info) {
     if (err) {
       return next(err);
     }
     if (!foundUser) {
       return res.status(400).send(info.message);
     }
-    req.logIn(foundUser, function (err) {
-      if (err) {
-        return next(err);
-      }
-      return res.send(foundUser);
-    });
+
+    try {
+      // Assuming `levelId` is stored in foundUser
+      const level = await Level.findOne(foundUser.levelId).lean();
+      const levelName = level ? level.name : null;
+
+      console.log(levelName , "level name is ");
+      
+
+      req.logIn(foundUser, function (err) {
+        if (err) {
+          return next(err);
+        }
+        // Attach levelName to the response
+        return res.send({
+          ...foundUser.toObject(), // Convert Mongoose document to plain object
+          levelName,
+        });
+      });
+    } catch (fetchError) {
+      return next(fetchError);
+    }
   })(req, res, next);
 };
 

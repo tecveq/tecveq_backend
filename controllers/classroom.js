@@ -415,7 +415,7 @@ exports.getClassroomsOfTeacher = async (req, res, next) => {
     const classroomsWithClasses = await Classroom.aggregate([
       {
         $lookup: {
-          from: "users", // Collection where user data (including teachers and students) is stored
+          from: "users", // Collection where user data (teachers and students) is stored
           localField: "createdBy",
           foreignField: "_id",
           as: "createdBy",
@@ -452,16 +452,36 @@ exports.getClassroomsOfTeacher = async (req, res, next) => {
       },
       {
         $lookup: {
-          from: "users", // Assuming students' details are also in the "users" collection
+          from: "users", // Assuming students' details are in the "users" collection
           localField: "students",
           foreignField: "_id",
           as: "studentDetails", // Populate student details here
         },
       },
       {
+        $lookup: {
+          from: "levels", // Reference the levels collection
+          localField: "levelID", // Match classroom's levelID with levels collection
+          foreignField: "_id", // Match with levels' _id
+          as: "levelDetails", // Populate level details
+        },
+      },
+      {
+        $addFields: {
+          levelName: {
+            $cond: {
+              if: { $gt: [{ $size: "$levelDetails" }, 0] }, // Check if levelDetails array is not empty
+              then: { $arrayElemAt: ["$levelDetails.name", 0] }, // Extract the level name
+              else: "", // Set an empty string if no levelID
+            },
+          },
+        },
+      },
+      {
         $project: {
-          "createdBy.password": 0, // Exclude sensitive fields from the response
+          "createdBy.password": 0, // Exclude sensitive fields
           "studentDetails.password": 0,
+          levelDetails: 0, // Exclude levelDetails array as we already have levelName
         },
       },
     ]);
@@ -471,3 +491,4 @@ exports.getClassroomsOfTeacher = async (req, res, next) => {
     next(err);
   }
 };
+
