@@ -23,12 +23,24 @@ exports.createSubject = async (req, res, next) => {
 
 exports.getSubjects = async (req, res, next) => {
   try {
-    const subjects = await Subject.find();
-    res.status(200).send(subjects);
+    const subjects = await Subject.find()
+      .populate({
+        path: 'levelID', // Field in the Subject schema referring to Level
+        select: 'name', // Select only the 'name' field from the Level schema
+      });
+
+    // If you want to format the output to include levelName directly in the subject objects:
+    const formattedSubjects = subjects.map(subject => ({
+      ...subject._doc, // Spread the existing subject fields
+      levelName: subject.levelID ? subject.levelID.name : "Unknown Level", // Add levelName
+    }));
+
+    res.status(200).send(formattedSubjects);
   } catch (err) {
     next(err);
   }
 };
+
 
 exports.getSubjectsOfLevel = async (req, res, next) => {
   try {
