@@ -83,14 +83,15 @@ exports.login = async (req, res, next) => {
     if (!foundUser) {
       return res.status(400).send(info.message);
     }
+    console.log(foundUser ,"found");
+    
 
     try {
       // Assuming `levelId` is stored in foundUser
       const level = await Level.findOne(foundUser.levelId).lean();
       const levelName = level ? level.name : null;
 
-      console.log(levelName , "level name is ");
-      
+
 
       req.logIn(foundUser, function (err) {
         if (err) {
@@ -194,6 +195,35 @@ exports.getAllStudents = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getAllStudentsWithLevel = async (req, res, next) => {
+  try {
+    // Extract levelName from route parameters
+    const { levelId } = req.params;
+    if (!levelId) {
+      return res.status(400).send({ message: "Level Id is required." });
+    }
+
+    // Fetch all users with userType "Students"
+    const students = await User.find({ userType: "student" });
+
+    console.log(students, "students");
+
+    // Filter students based on the provided levelName
+    const filteredStudents = students?.filter(
+      (student) => student.levelID.toString() === levelId.toString()
+    );
+
+    console.log(filteredStudents, "filtered sstudents");
+
+    res.send(filteredStudents);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
 
 exports.getUsers = async (req, res, next) => {
   try {

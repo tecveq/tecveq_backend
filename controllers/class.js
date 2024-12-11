@@ -3,10 +3,10 @@ const Classroom = require("../models/classroom");
 const Class = require("../models/class");
 const Notification = require("../models/notification");
 const Attendance = require("../models/attendence");
+const User = require("../models/user");
+
 const mongoose = require("mongoose");
 const moment = require("moment");
-
-
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
 
 
@@ -40,7 +40,7 @@ exports.createClass = async (req, res, next) => {
 
     const startDate = moment(startEventDate);
     const endDate = moment(endEventDate);
-     // if (startDate >= endDate) {
+    // if (startDate >= endDate) {
     //   return res.status(400).json({ error: "End Date must be after start Date" });
     // }
     const events = [];
@@ -559,7 +559,7 @@ exports.submitAttendence = async (req, res, next) => {
 
     // Fetch today's head attendance record
     const headAttendance = await Attendance.findOne({
-      entityId: studentClass._id,
+      // entityId: studentClass._id,
       Date: { $gte: todayStart, $lt: todayEnd },
     });
 
@@ -585,16 +585,31 @@ exports.submitAttendence = async (req, res, next) => {
       const classTitle = studentClass.title;
       const subjectName = studentClass.subjectID.name; // Assuming subjectID has a 'name' field
 
-      const notifications = discrepancyStudents.map(studentID => ({
-        userID: "66a42ad9cdbb401490e297ba", // Admin's User ID
-        message: `Student with ID: ${studentID} is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present in the head attendance.`,
-        url: `/students/${studentID}`, // URL to the student's page
-        deliveredTo: ["66a42ad9cdbb401490e297ba"], // Admin's User ID
-      }));
+      const admins = await User.findOne({ userType: "admin" });
+
+      console.log(admins, "Subject hahahhahaha");
+
+      // Map over discrepancyStudents and create notifications
+      const notifications = await Promise.all(
+        discrepancyStudents.map(async studentID => {
+          const student = await User.findById(studentID);
+          const studentName = student ? student.name : "Unknown Student";
+
+          console.log(studentName, "student Name hahahah");
+
+          return {
+            userID: "66a42ad9cdbb401490e297ba", // Admin's User ID
+            message: `Student with Id: ${studentID} Student with Name: ${studentName} is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present in the head attendance.`,
+            url: `/students/${studentID}`, // URL to the student's page
+            deliveredTo: [`${admins._id}`], // Admin's User ID
+          };
+        })
+      );
 
       // Send notifications
       await Notification.insertMany(notifications);
     }
+
 
     return res.status(200).json({ message: "Class attendance updated successfully!" });
   } catch (error) {

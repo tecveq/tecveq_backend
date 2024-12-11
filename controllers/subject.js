@@ -1,4 +1,6 @@
 const Subject = require("../models/subject");
+const Classroom = require("../models/classroom");
+
 
 exports.createSubject = async (req, res, next) => {
   try {
@@ -75,3 +77,51 @@ exports.deleteSubject = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getTeacherSubjects = async (req, res, next) => {
+  try {
+    const { teacherId } = req.params;
+
+    console.log("Fetching subjects for teacher:", teacherId);
+
+    // Find all classrooms where the teacherId exists in the teachers array
+    const classrooms = await Classroom.find({
+      "teachers.teacher": teacherId,
+    });
+
+    if (!classrooms || classrooms.length === 0) {
+      return res.status(404).json({
+        message: "Teacher not found in any classroom.",
+      });
+    }
+
+    // Collect all subjects associated with the teacher in each classroom
+    const subjects = [];
+
+    for (const classroom of classrooms) {
+      const teacherData = classroom.teachers.find(
+        (teacher) => teacher.teacher.toString() === teacherId
+      );
+
+      if (teacherData && teacherData.subject) {
+        const subject = await Subject.findById(teacherData.subject);
+        if (subject) {
+          subjects.push({ name: subject.name, classroomId: classroom._id, _id: subject._id });
+        }
+      }
+    }
+
+    if (subjects.length === 0) {
+      return res.status(404).json({
+        message: "No subjects found for the given teacher.",
+      });
+    }
+
+    return res.status(200).json(
+      subjects
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
