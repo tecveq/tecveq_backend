@@ -3,10 +3,10 @@ const Classroom = require("../models/classroom");
 const Class = require("../models/class");
 const Notification = require("../models/notification");
 const Attendance = require("../models/attendence");
+const User = require("../models/user");
+
 const mongoose = require("mongoose");
 const moment = require("moment");
-
-
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
 
 
@@ -40,7 +40,7 @@ exports.createClass = async (req, res, next) => {
 
     const startDate = moment(startEventDate);
     const endDate = moment(endEventDate);
-     // if (startDate >= endDate) {
+    // if (startDate >= endDate) {
     //   return res.status(400).json({ error: "End Date must be after start Date" });
     // }
     const events = [];
@@ -538,10 +538,13 @@ exports.getTodayClasses = async (req, res, next) => {
 exports.submitAttendence = async (req, res, next) => {
   try {
     const { id } = req.params; // Class ID
-    const { data } = req.body; // Attendance data submitted by the teacher
+    const { data, classroomID } = req.body; // Attendance data submitted by the teacher
 
     // Fetch the class details
     const studentClass = await Class.findById(id).populate('subjectID');
+
+    console.log(studentClass, "student class details");
+
     if (!studentClass) {
       return res.status(404).json({ message: "Class not found" });
     }
@@ -553,13 +556,13 @@ exports.submitAttendence = async (req, res, next) => {
     const todayStart = new Date(new Date().setHours(0, 0, 0, 0)); // Start of the day (00:00:00)
     const todayEnd = new Date(new Date().setHours(23, 59, 59, 999)); // End of the day (23:59:59)
 
-    // Log the date for debugging
-    console.log("Today Start: ", todayStart);
-    console.log("Today End: ", todayEnd);
+
+    console.log(classroomID, "classroom Id:");
+
 
     // Fetch today's head attendance record
     const headAttendance = await Attendance.findOne({
-      entityId: studentClass._id,
+      entityId: classroomID,
       Date: { $gte: todayStart, $lt: todayEnd },
     });
 
@@ -585,16 +588,34 @@ exports.submitAttendence = async (req, res, next) => {
       const classTitle = studentClass.title;
       const subjectName = studentClass.subjectID.name; // Assuming subjectID has a 'name' field
 
-      const notifications = discrepancyStudents.map(studentID => ({
-        userID: "66a42ad9cdbb401490e297ba", // Admin's User ID
-        message: `Student with ID: ${studentID} is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present in the head attendance.`,
-        url: `/students/${studentID}`, // URL to the student's page
-        deliveredTo: ["66a42ad9cdbb401490e297ba"], // Admin's User ID
-      }));
+      const admins = await User.findOne({ userType: "admin" });
+
+
+
+
+      const students = await User.find({ _id: { $in: discrepancyStudents } });
+
+      const studentMap = students.reduce((map, student) => {
+        map[student._id.toString()] = student.name;
+        return map;
+      }, {});
+
+      // Step 3: Generate notifications using the lookup map
+      const notifications = discrepancyStudents.map(studentID => {
+        const studentName = studentMap[studentID] || "Unknown Student";
+        return {
+          userID: `${admins._id}`, // Admin's User ID
+          message: `Student with Id: ${studentID} and Student Name: ${studentName} is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present in the head attendance.`,
+          url: `/students/${studentID}`, // URL to the student's page
+          deliveredTo: [`${admins._id}`], // Admin's User ID
+        };
+      });
+
 
       // Send notifications
       await Notification.insertMany(notifications);
     }
+
 
     return res.status(200).json({ message: "Class attendance updated successfully!" });
   } catch (error) {
