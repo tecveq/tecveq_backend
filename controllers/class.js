@@ -604,7 +604,7 @@ exports.submitAttendence = async (req, res, next) => {
       const notifications = discrepancyStudents.map(studentID => {
         const studentName = studentMap[studentID] || "Unknown Student";
         return {
-          userID: `${admins._id}`, // Admin's User ID
+          userID: req.user._id, // Admin's User ID
           message: `Student with Id: ${studentID} and Student Name: ${studentName} is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present in the head attendance.`,
           url: `/students/${studentID}`, // URL to the student's page
           deliveredTo: [`${admins._id}`], // Admin's User ID
