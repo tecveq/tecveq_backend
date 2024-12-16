@@ -8,6 +8,7 @@ const Quiz = require("../models/quiz");
 const Device = require("../models/devices");
 const mongoose = require("mongoose");
 const Activity = require("../models/activities");
+const Level = require("../models/level");
 
 exports.register = async (req, res, next) => {
   try {
@@ -73,20 +74,38 @@ exports.register = async (req, res, next) => {
     next(err);
   }
 };
-exports.login = (req, res, next) => {
-  passport.authenticate("local", function (err, foundUser, info) {
+
+exports.login = async (req, res, next) => {
+  passport.authenticate("local", async function (err, foundUser, info) {
     if (err) {
       return next(err);
     }
     if (!foundUser) {
       return res.status(400).send(info.message);
     }
-    req.logIn(foundUser, function (err) {
-      if (err) {
-        return next(err);
-      }
-      return res.send(foundUser);
-    });
+    console.log(foundUser, "found");
+
+
+    try {
+      // Assuming `levelId` is stored in foundUser
+      const level = await Level.findOne(foundUser.levelId).lean();
+      const levelName = level ? level.name : null;
+
+
+
+      req.logIn(foundUser, function (err) {
+        if (err) {
+          return next(err);
+        }
+        // Attach levelName to the response
+        return res.send({
+          ...foundUser.toObject(), // Convert Mongoose document to plain object
+          levelName,
+        });
+      });
+    } catch (fetchError) {
+      return next(fetchError);
+    }
   })(req, res, next);
 };
 
@@ -176,6 +195,33 @@ exports.getAllStudents = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getAllStudentsWithLevel = async (req, res, next) => {
+  try {
+    // Extract levelId from route parameters
+    const { levelId } = req.params;
+
+    if (!levelId) {
+      return res.status(400).send({ message: "Level Id is required." });
+    }
+
+    // Fetch students directly based on userType and levelID
+    const students = await User.find({
+      userType: "student",
+      levelID: levelId.toString(),
+    });
+
+    console.log(students, "filtered students");
+
+    res.send(students);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+
 
 exports.getUsers = async (req, res, next) => {
   try {

@@ -23,6 +23,9 @@ userRouter.delete("/reject/:userID", controller.rejectUser);
 // get all students
 userRouter.get("/students", controller.getAllStudents);
 
+userRouter.get("/students-with-level/:levelId", controller.getAllStudentsWithLevel);
+
+
 // get students of teacher
 userRouter.get("/students-of-teacher", controller.getStudentsOfTeacher);
 
