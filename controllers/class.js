@@ -20,74 +20,111 @@ exports.createClass = async (req, res, next) => {
       classroomID,
       subjectID,
       teacher,
+      selectedDays, // Array of selected days like ["Monday", "Wednesday", "Friday"]
     } = req.body;
 
+    // Validate classroom
     const classroom = await Classroom.findById(classroomID);
     if (!classroom) {
       return res.status(400).json({ error: "Classroom does not exist" });
     }
 
+    // Validate subject
     const subject = await Subject.findById(subjectID);
     if (!subject) {
       return res.status(400).json({ error: "Subject does not exist" });
     }
 
+    // Validate times
     const start = new Date(startTime);
     const end = new Date(endTime);
     if (start >= end) {
       return res.status(400).json({ error: "End time must be after start time" });
     }
 
+    // Convert start and end event dates to moment objects
+
     const startDate = moment(startEventDate);
     const endDate = moment(endEventDate);
-    // if (startDate >= endDate) {
-    //   return res.status(400).json({ error: "End Date must be after start Date" });
-    // }
+
+    if (startDate.isAfter(endDate)) {
+      return res.status(400).json({ error: "End Date must be after Start Date" });
+    }
+
+    const dayMap = {
+      Sunday: 0,
+      Monday: 1,
+      Tuesday: 2,
+      Wednesday: 3,
+      Thursday: 4,
+      Friday: 5,
+      Saturday: 6,
+    };
+
+    // Validate selected days
+
+    if (!Array.isArray(selectedDays) || selectedDays.length === 0) {
+      return res.status(400).json({ error: "Please select at least one day." });
+    }
+
+    const selectedDayNumbers = selectedDays.map(day => dayMap[day]);
+
     const events = [];
     let currentDate = moment(startDate);
 
+    // Loop through dates and create classes only on selected days
+    
     while (currentDate.isSameOrBefore(endDate)) {
-      const dayStart = moment(currentDate)
-        .set({ hour: start.getHours(), minute: start.getMinutes() })
-        .toDate();
-      const dayEnd = moment(currentDate)
-        .set({ hour: end.getHours(), minute: end.getMinutes() })
-        .toDate();
+      if (selectedDayNumbers.includes(currentDate.day())) {
+        const dayStart = moment(currentDate)
+          .set({ hour: start.getHours(), minute: start.getMinutes() })
+          .toDate();
 
-      // Check for conflicts on this specific day
-      const teacherConflict = await Class.findOne({
-        "teacher.teacherID": teacher.teacherID,
-        startTime: { $lt: dayEnd },
-        endTime: { $gt: dayStart },
-      });
+        const dayEnd = moment(currentDate)
+          .set({ hour: end.getHours(), minute: end.getMinutes() })
+          .toDate();
 
-      if (teacherConflict) {
-        return res
-          .status(400)
-          .json({ error: `Teacher has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
+        // Check for teacher conflicts on this specific day
+        const teacherConflict = await Class.findOne({
+          "teacher.teacherID": teacher.teacherID,
+          startTime: { $lt: dayEnd },
+          endTime: { $gt: dayStart },
+        });
+
+        if (teacherConflict) {
+          return res
+            .status(400)
+            .json({ error: `Teacher has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
+        }
+
+        // Check for student conflicts on this specific day
+        const studentConflict = await Class.findOne({
+          classroomID: { $in: classroom.students.map(s => s.studentID) },
+          startTime: { $lt: dayEnd },
+          endTime: { $gt: dayStart },
+        });
+
+        if (studentConflict) {
+          return res
+            .status(400)
+            .json({ error: `Student has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
+        }
+
+        // Store the event
+        events.push({
+          ...req.body,
+          startTime: dayStart,
+          endTime: dayEnd,
+          createdBy: req.user._id,
+        });
       }
 
-      const studentConflict = await Class.findOne({
-        classroomID: { $in: classroom.students.map((s) => s.studentID) },
-        startTime: { $lt: dayEnd },
-        endTime: { $gt: dayStart },
-      });
+      // Move to the next day
+      currentDate = currentDate.add(1, "day");
+    }
 
-      if (studentConflict) {
-        return res
-          .status(400)
-          .json({ error: `Student has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
-      }
-
-      // Store the event
-      events.push({
-        ...req.body,
-        startTime: dayStart,
-        endTime: dayEnd,
-        createdBy: req.user._id,
-      });
-
-      currentDate = currentDate.add(1, "day"); // Move to the next day
+    if (events.length === 0) {
+      return res.status(400).json({ error: "No valid classes were scheduled. Please check your selected days." });
     }
 
     // Bulk save all events
