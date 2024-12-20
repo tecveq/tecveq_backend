@@ -78,11 +78,11 @@ exports.getStudentReportForParent = async (req, res, next) => {
         (classes.reduce(
           (total, classs) =>
             total +
-            classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true? 1 : 0,
+              classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true ? 1 : 0,
           0
         ) /
           classes.reduce(
-            (total, classs) => total + classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true? 1 : 1, 0
+            (total, classs) => total + classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true ? 1 : 1, 0
           )
         ) *
         100
@@ -217,10 +217,12 @@ exports.getChilSubjects = async (req, res, next) => {
   try {
     const { studentID } = req.params;
 
+    // Fetch classrooms and populate teachers' subjects and details
     const classrooms = await Classroom.find({ students: studentID })
       .populate("teachers.subject")
       .populate("teachers.teacher");
 
+    // Extract unique subjects, teachers, and classrooms from the data
     const subjects = classrooms.reduce((result, classroom) => {
       if (classroom.teachers && classroom.teachers.length > 0) {
         classroom.teachers.forEach((teacher) => {
@@ -228,7 +230,7 @@ exports.getChilSubjects = async (req, res, next) => {
             result.push({
               subject: teacher.subject,
               teacher: teacher.teacher,
-              classroom: classroom
+              classroom: classroom,
             });
           }
         });
@@ -236,52 +238,60 @@ exports.getChilSubjects = async (req, res, next) => {
       return result;
     }, []);
 
+    // Fetch all classes where the student has attendance records
     const classes = await Class.find({
-      attendance: {$elemMatch: {studentID: studentID}}
+      attendance: { $elemMatch: { studentID: studentID } },
     });
 
-    let matched = false;
+    // Create a map to track aggregated attendance per subject
+    const attendanceMap = new Map();
 
-    let newarr = []; 
-    subjects.map((item) =>{
-      classes.map((cls) =>{
+    // Aggregate attendance records by subject and calculate percentage
+    classes.forEach((cls) => {
+      const subjectID = cls.subjectID.toString();
 
-        if(cls.subjectID.toString() == item.subject._id.toString()){
+      // Initialize attendance data for this subject if not already present
+      if (!attendanceMap.has(subjectID)) {
+        attendanceMap.set(subjectID, { totalClasses: 0, presentClasses: 0 });
+      }
 
-          let avgAttendancePer = (
-            (classes.reduce((total, classs) => {
-              const attendanceRecord = classs.attendance.find(
-                (sub) => sub.studentID.toString() === studentID.toString()
-              );
-              return total + (attendanceRecord && attendanceRecord.isPresent ? 1 : 0);
-            }, 0) /
-              classes.reduce((total, classs) => {
-                const attendanceRecord = classs.attendance.find(
-                  (sub) => sub.studentID.toString() === studentID.toString()
-                );
-                // Count the class if the attendance record for this student exists
-                return total + (attendanceRecord ? 1 : 0);
-              }, 0)) *
-            100
-          ).toFixed(0);
-      
-          let myobj = {...item, classs: cls, avgAttendancePer}
-          matched = true;
-          newarr.push(myobj);
+      // Update the aggregated attendance data for the subject
+      const attendanceData = attendanceMap.get(subjectID);
+      cls.attendance.forEach((record) => {
+        if (record.studentID.toString() === studentID.toString()) {
+          attendanceData.totalClasses++;
+          if (record.isPresent) {
+            attendanceData.presentClasses++;
+          }
         }
       });
-      if(matched){
-        matched = false;
-      }else{
-        newarr.push(item);
-      }
-    })
+    });
 
-    res.send({subjects:newarr} );
-    // res.send(subjects);
+    // Calculate attendance percentage and store in the map
+    attendanceMap.forEach((data, subjectID) => {
+      data.avgAttendancePer = (
+        (data.presentClasses / data.totalClasses) * 100
+      ).toFixed(0);
+    });
+
+    // Merge attendance data with subjects, avoiding duplication
+    const newarr = subjects.map((item) => {
+      const subjectData = attendanceMap.get(item.subject._id.toString());
+      if (subjectData) {
+        // Subject found in attendance records; merge the data
+        return { ...item, avgAttendancePer: subjectData.avgAttendancePer };
+      } else {
+        // Subject not found in attendance records; return as is
+        return item;
+      }
+    });
+
+    // Send the processed subjects as the response
+    res.send({ subjects: newarr });
   } catch (err) {
     next(err);
   }
 };
+
 
 exports.getParentChats;

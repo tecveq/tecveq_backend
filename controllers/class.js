@@ -73,7 +73,7 @@ exports.createClass = async (req, res, next) => {
     let currentDate = moment(startDate);
 
     // Loop through dates and create classes only on selected days
-    
+
     while (currentDate.isSameOrBefore(endDate)) {
       if (selectedDayNumbers.includes(currentDate.day())) {
         const dayStart = moment(currentDate)
@@ -575,7 +575,7 @@ exports.getTodayClasses = async (req, res, next) => {
 exports.submitAttendence = async (req, res, next) => {
   try {
     const { id } = req.params; // Class ID
-    const { data, classroomID } = req.body; // Attendance data submitted by the teacher
+    const { data, classroomID, startTime } = req.body; // Attendance data submitted by the teacher
 
     // Fetch the class details
     const studentClass = await Class.findById(id).populate('subjectID');
@@ -590,12 +590,8 @@ exports.submitAttendence = async (req, res, next) => {
     await Class.findByIdAndUpdate(id, { attendance: data }, { new: true });
 
     // Fetch today's start date (ensure it is in UTC)
-    const todayStart = new Date(new Date().setHours(0, 0, 0, 0)); // Start of the day (00:00:00)
-    const todayEnd = new Date(new Date().setHours(23, 59, 59, 999)); // End of the day (23:59:59)
-
-
-    console.log(classroomID, "classroom Id:");
-
+    const todayStart = new Date(startTime).setHours(0, 0, 0, 0); // Start of the day (00:00:00)
+    const todayEnd = new Date(startTime).setHours(23, 59, 59, 999); // End of the day (23:59:59)
 
     // Fetch today's head attendance record
     const headAttendance = await Attendance.findOne({
@@ -629,25 +625,40 @@ exports.submitAttendence = async (req, res, next) => {
 
 
 
+      // Fetch students and their guardians
 
-      const students = await User.find({ _id: { $in: discrepancyStudents } });
+      const students = await User.find({
+        _id: { $in: discrepancyStudents },
+      });
+
+      //  Create a map of student names and extract guardian IDs
 
       const studentMap = students.reduce((map, student) => {
         map[student._id.toString()] = student.name;
         return map;
       }, {});
 
-      // Step 3: Generate notifications using the lookup map
+      // Extract guardian IDs from the student records
+
+      const guardianIds = students
+        .filter(student => student.guardianId) // Ensure the student has a guardianId
+        .map(student => student.guardianId.toString());
+
+      //  Combine admin ID with unique guardian IDs
+
+      const deliveredTo = [req.user._id, ...new Set(guardianIds)]; // Use `Set` to avoid duplicate IDs
+
+      //  Generate notifications using the lookup map
+
       const notifications = discrepancyStudents.map(studentID => {
         const studentName = studentMap[studentID] || "Unknown Student";
         return {
           userID: req.user._id, // Admin's User ID
           message: `Student with Id: ${studentID} and Student Name: ${studentName} is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present in the head attendance.`,
           url: `/students/${studentID}`, // URL to the student's page
-          deliveredTo: [`${admins._id}`], // Admin's User ID
+          deliveredTo: deliveredTo, // Deliver to admin and guardians
         };
       });
-
 
       // Send notifications
       await Notification.insertMany(notifications);
