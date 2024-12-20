@@ -56,17 +56,24 @@ exports.register = async (req, res, next) => {
 
     // Create parent account for student
     if (data.userType === "student") {
-      const parent = await User.findOne({ email: data.guardianEmail });
+      let parent = await User.findOne({ email: data.guardianEmail, userType: "parent" });
+
+      // If the guardian does not exist, create a new one
       if (!parent) {
-        const parentAccount = new User({
+        const parentData = {
           name: data.guardianName,
           email: data.guardianEmail,
-          password: bcrypt.hashSync("123456", 8),
+          password: data.password, // Can hash again if required for the guardian
           userType: "parent",
           phoneNumber: data.guardianPhoneNumber,
-        });
-        await parentAccount.save();
+        };
+        const parentAccount = new User(parentData);
+        parent = await parentAccount.save();
       }
+
+      // Update student's guardianId with the parent's ID
+      user.guardianId = parent._id;
+      await user.save();
     }
 
     res.send({ ...user._doc, password: undefined });

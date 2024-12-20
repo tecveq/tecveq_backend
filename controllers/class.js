@@ -20,74 +20,111 @@ exports.createClass = async (req, res, next) => {
       classroomID,
       subjectID,
       teacher,
+      selectedDays, // Array of selected days like ["Monday", "Wednesday", "Friday"]
     } = req.body;
 
+    // Validate classroom
     const classroom = await Classroom.findById(classroomID);
     if (!classroom) {
       return res.status(400).json({ error: "Classroom does not exist" });
     }
 
+    // Validate subject
     const subject = await Subject.findById(subjectID);
     if (!subject) {
       return res.status(400).json({ error: "Subject does not exist" });
     }
 
+    // Validate times
     const start = new Date(startTime);
     const end = new Date(endTime);
     if (start >= end) {
       return res.status(400).json({ error: "End time must be after start time" });
     }
 
+    // Convert start and end event dates to moment objects
+
     const startDate = moment(startEventDate);
     const endDate = moment(endEventDate);
-    // if (startDate >= endDate) {
-    //   return res.status(400).json({ error: "End Date must be after start Date" });
-    // }
+
+    if (startDate.isAfter(endDate)) {
+      return res.status(400).json({ error: "End Date must be after Start Date" });
+    }
+
+    const dayMap = {
+      Sunday: 0,
+      Monday: 1,
+      Tuesday: 2,
+      Wednesday: 3,
+      Thursday: 4,
+      Friday: 5,
+      Saturday: 6,
+    };
+
+    // Validate selected days
+
+    if (!Array.isArray(selectedDays) || selectedDays.length === 0) {
+      return res.status(400).json({ error: "Please select at least one day." });
+    }
+
+    const selectedDayNumbers = selectedDays.map(day => dayMap[day]);
+
     const events = [];
     let currentDate = moment(startDate);
 
+    // Loop through dates and create classes only on selected days
+
     while (currentDate.isSameOrBefore(endDate)) {
-      const dayStart = moment(currentDate)
-        .set({ hour: start.getHours(), minute: start.getMinutes() })
-        .toDate();
-      const dayEnd = moment(currentDate)
-        .set({ hour: end.getHours(), minute: end.getMinutes() })
-        .toDate();
+      if (selectedDayNumbers.includes(currentDate.day())) {
+        const dayStart = moment(currentDate)
+          .set({ hour: start.getHours(), minute: start.getMinutes() })
+          .toDate();
 
-      // Check for conflicts on this specific day
-      const teacherConflict = await Class.findOne({
-        "teacher.teacherID": teacher.teacherID,
-        startTime: { $lt: dayEnd },
-        endTime: { $gt: dayStart },
-      });
+        const dayEnd = moment(currentDate)
+          .set({ hour: end.getHours(), minute: end.getMinutes() })
+          .toDate();
 
-      if (teacherConflict) {
-        return res
-          .status(400)
-          .json({ error: `Teacher has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
+        // Check for teacher conflicts on this specific day
+        const teacherConflict = await Class.findOne({
+          "teacher.teacherID": teacher.teacherID,
+          startTime: { $lt: dayEnd },
+          endTime: { $gt: dayStart },
+        });
+
+        if (teacherConflict) {
+          return res
+            .status(400)
+            .json({ error: `Teacher has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
+        }
+
+        // Check for student conflicts on this specific day
+        const studentConflict = await Class.findOne({
+          classroomID: { $in: classroom.students.map(s => s.studentID) },
+          startTime: { $lt: dayEnd },
+          endTime: { $gt: dayStart },
+        });
+
+        if (studentConflict) {
+          return res
+            .status(400)
+            .json({ error: `Student has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
+        }
+
+        // Store the event
+        events.push({
+          ...req.body,
+          startTime: dayStart,
+          endTime: dayEnd,
+          createdBy: req.user._id,
+        });
       }
 
-      const studentConflict = await Class.findOne({
-        classroomID: { $in: classroom.students.map((s) => s.studentID) },
-        startTime: { $lt: dayEnd },
-        endTime: { $gt: dayStart },
-      });
+      // Move to the next day
+      currentDate = currentDate.add(1, "day");
+    }
 
-      if (studentConflict) {
-        return res
-          .status(400)
-          .json({ error: `Student has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
-      }
-
-      // Store the event
-      events.push({
-        ...req.body,
-        startTime: dayStart,
-        endTime: dayEnd,
-        createdBy: req.user._id,
-      });
-
-      currentDate = currentDate.add(1, "day"); // Move to the next day
+    if (events.length === 0) {
+      return res.status(400).json({ error: "No valid classes were scheduled. Please check your selected days." });
     }
 
     // Bulk save all events
@@ -538,7 +575,7 @@ exports.getTodayClasses = async (req, res, next) => {
 exports.submitAttendence = async (req, res, next) => {
   try {
     const { id } = req.params; // Class ID
-    const { data, classroomID } = req.body; // Attendance data submitted by the teacher
+    const { data, classroomID, startTime } = req.body; // Attendance data submitted by the teacher
 
     // Fetch the class details
     const studentClass = await Class.findById(id).populate('subjectID');
@@ -553,12 +590,8 @@ exports.submitAttendence = async (req, res, next) => {
     await Class.findByIdAndUpdate(id, { attendance: data }, { new: true });
 
     // Fetch today's start date (ensure it is in UTC)
-    const todayStart = new Date(new Date().setHours(0, 0, 0, 0)); // Start of the day (00:00:00)
-    const todayEnd = new Date(new Date().setHours(23, 59, 59, 999)); // End of the day (23:59:59)
-
-
-    console.log(classroomID, "classroom Id:");
-
+    const todayStart = new Date(startTime).setHours(0, 0, 0, 0); // Start of the day (00:00:00)
+    const todayEnd = new Date(startTime).setHours(23, 59, 59, 999); // End of the day (23:59:59)
 
     // Fetch today's head attendance record
     const headAttendance = await Attendance.findOne({
@@ -592,25 +625,40 @@ exports.submitAttendence = async (req, res, next) => {
 
 
 
+      // Fetch students and their guardians
 
-      const students = await User.find({ _id: { $in: discrepancyStudents } });
+      const students = await User.find({
+        _id: { $in: discrepancyStudents },
+      });
+
+      //  Create a map of student names and extract guardian IDs
 
       const studentMap = students.reduce((map, student) => {
         map[student._id.toString()] = student.name;
         return map;
       }, {});
 
-      // Step 3: Generate notifications using the lookup map
+      // Extract guardian IDs from the student records
+
+      const guardianIds = students
+        .filter(student => student.guardianId) // Ensure the student has a guardianId
+        .map(student => student.guardianId.toString());
+
+      //  Combine admin ID with unique guardian IDs
+
+      const deliveredTo = [req.user._id, ...new Set(guardianIds)]; // Use `Set` to avoid duplicate IDs
+
+      //  Generate notifications using the lookup map
+
       const notifications = discrepancyStudents.map(studentID => {
         const studentName = studentMap[studentID] || "Unknown Student";
         return {
           userID: req.user._id, // Admin's User ID
           message: `Student with Id: ${studentID} and Student Name: ${studentName} is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present in the head attendance.`,
           url: `/students/${studentID}`, // URL to the student's page
-          deliveredTo: [`${admins._id}`], // Admin's User ID
+          deliveredTo: deliveredTo, // Deliver to admin and guardians
         };
       });
-
 
       // Send notifications
       await Notification.insertMany(notifications);
