@@ -72,6 +72,9 @@ exports.createClass = async (req, res, next) => {
     const events = [];
     let currentDate = moment(startDate);
 
+    const isMultiDay = !moment(startDate).isSame(endDate, 'day');
+    const groupID = isMultiDay ? new mongoose.Types.ObjectId() : null;
+
     // Loop through dates and create classes only on selected days
 
     while (currentDate.isSameOrBefore(endDate)) {
@@ -115,6 +118,7 @@ exports.createClass = async (req, res, next) => {
           ...req.body,
           startTime: dayStart,
           endTime: dayEnd,
+          groupID: groupID,
           createdBy: req.user._id,
         });
       }
@@ -134,6 +138,101 @@ exports.createClass = async (req, res, next) => {
   } catch (err) {
     console.error("Error creating class:", err.message, err.stack);
     return res.status(500).json({ error: "An error occurred while creating the class" });
+  }
+};
+
+
+exports.updateClass = async (req, res, next) => {
+  try {
+    const {
+      classID,
+      startTime,
+      endTime,
+      startEventDate,
+      endEventDate,
+      status, // true or false
+    } = req.body;
+
+    // Validate class
+    const existingClass = await Class.findById(classID);
+    if (!existingClass) {
+      return res.status(404).json({ error: "Class not found" });
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+ 
+
+    const startDate = moment(startEventDate);
+    const endDate = moment(startEventDate);
+
+    const updatedStartTime = moment(start)
+      .set({
+        year: startDate.year(),
+        month: startDate.month(),
+        date: startDate.date(),
+      })
+      .toISOString();
+
+    const updatedEndTime = moment(end)
+      .set({
+        year: startDate.year(),
+        month: startDate.month(),
+        date: startDate.date(),
+      })
+      .toISOString();
+
+    // Handle group updates
+    if (existingClass.groupID) {
+      if (status) {
+        const existingClasses = await Class.find({ groupID: existingClass.groupID });
+
+        existingClasses.forEach(async (cls) => {
+          const startDate = new Date(cls.startTime); // Get the existing startTime
+          const endDate = new Date(cls.endTime);     // Get the existing endTime
+
+          // Extract date parts
+          const startDateOnly = startDate.toISOString().split('T')[0]; // Get only the date
+          const endDateOnly = endDate.toISOString().split('T')[0];
+
+          // Format new time
+          const newStartTime = `${startDateOnly}T${start.toISOString().split('T')[1]}`;
+          const newEndTime = `${endDateOnly}T${end.toISOString().split('T')[1]}`;
+
+          // Update the document
+          await Class.updateOne(
+            { _id: cls._id },
+            {
+              startTime: new Date(newStartTime),
+              endTime: new Date(newEndTime),
+            }
+          );
+        });
+
+        return res.status(200).json({ message: "All classes updated successfully" });
+      } else {
+        // Update only the current class
+        existingClass.startTime = start;
+        existingClass.endTime = end;
+        await existingClass.save();
+        return res.status(200).json({ message: "Single class updated successfully" });
+      }
+    } else {
+      // Update single class (no groupID)
+      existingClass.startTime = updatedStartTime;
+      existingClass.endTime = updatedEndTime;
+      existingClass.startEventDate = startDate;
+      existingClass.endEventDate = startDate; // Same as startEventDate
+      await existingClass.save();
+      return res.status(200).json({
+        data: existingClass,
+        message: "Single class updated successfully"
+      });
+    }
+  } catch (err) {
+    console.error("Error updating class:", err.message, err.stack);
+    return res.status(500).json({ error: "An error occurred while updating the class" });
   }
 };
 
@@ -646,7 +745,7 @@ exports.submitAttendence = async (req, res, next) => {
 
       //  Combine admin ID with unique guardian IDs
 
-      const deliveredTo = [req.user._id, ...new Set(guardianIds)]; // Use `Set` to avoid duplicate IDs
+      const deliveredTo = [admins?._id, ...new Set(guardianIds)]; // Use `Set` to avoid duplicate IDs
 
       //  Generate notifications using the lookup map
 

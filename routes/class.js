@@ -4,6 +4,9 @@ const classRouter = require("express").Router();
 
 classRouter.post("/", classController.createClass);
 
+classRouter.put("/", classController.updateClass);
+
+
 classRouter.get("/", classController.getClasses);
 
 // mark teacher present in the class

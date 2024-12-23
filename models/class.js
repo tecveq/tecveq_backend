@@ -40,6 +40,10 @@ const classSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  groupID: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false,
+  },
   teacher: {
     teacherID: {
       type: mongoose.Schema.Types.ObjectId,
