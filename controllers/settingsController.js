@@ -1,12 +1,13 @@
-const AttendanceSetting = require("../models/settingsModel");
+
+const Setting = require("../models/settingsModel");
 
 exports.addHeadAttendanceSetting = async (req, res, next) => {
     try {
         const { enableHeadAttendance } = req.body;
 
         // Create a new attendance setting
-        const newSetting = new AttendanceSetting({
-            mode: {
+        const newSetting = new Setting({
+            attendenceSetting: {
                 enableHeadAttendance: enableHeadAttendance, // Set the initial value
             },
         });
@@ -27,11 +28,11 @@ exports.updateHeadAttendanceSetting = async (req, res, next) => {
         const { settingId, enableHeadAttendance } = req.body;
 
         // Find the setting by ID and update it
-        const updatedSetting = await AttendanceSetting.findByIdAndUpdate(
+        const updatedSetting = await Setting.findByIdAndUpdate(
             settingId,
             {
                 $set: {
-                    "mode.enableHeadAttendance": enableHeadAttendance, // Update nested field
+                    "attendenceSetting.enableHeadAttendance": enableHeadAttendance, // Update nested field
                     updatedAt: Date.now(),
                 },
             },
@@ -53,7 +54,7 @@ exports.getHeadAttendanceSetting = async (req, res, next) => {
         console.log("run inside function");
 
         // Use the compiled model
-        const setting = await AttendanceSetting.findOne(); // Fetch first document
+        const setting = await Setting.findOne(); // Fetch first document
 
         console.log(setting, "setting");
 

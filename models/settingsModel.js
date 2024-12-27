@@ -1,7 +1,8 @@
+
 const mongoose = require("mongoose");
 
 // Nested Schema for AttendanceSettingMode
-const AttendanceSettingModeSchema = new mongoose.Schema({
+const AttendanceSettingSchema = new mongoose.Schema({
   enableHeadAttendance: {
     type: Boolean,
     required: true,
@@ -9,12 +10,15 @@ const AttendanceSettingModeSchema = new mongoose.Schema({
   },
 });
 
+
+
 // Main Schema for AttendanceSetting
-const AttendanceSettingsSchema = new mongoose.Schema({
-  mode: {
-    type: AttendanceSettingModeSchema,
+const Settings = new mongoose.Schema({
+  attendenceSetting: {
+    type: AttendanceSettingSchema,
     required: true,
   },
+
   createdAt: {
     type: Date,
     default: Date.now,
@@ -25,6 +29,6 @@ const AttendanceSettingsSchema = new mongoose.Schema({
   },
 });
 
-const AttendanceSetting = mongoose.model("AttendanceSetting", AttendanceSettingsSchema);
+const Setting = mongoose.model("Setting", Settings);
 
-module.exports = AttendanceSetting;
+module.exports = Setting;

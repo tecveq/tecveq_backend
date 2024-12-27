@@ -36,22 +36,27 @@ exports.createClass = async (req, res, next) => {
       return res.status(400).json({ error: "Subject does not exist" });
     }
 
-    console.log(startTime, "startTime", endTime, "endTime");
+    console.log(startTime, "startTime", "endTime", endTime);
+    console.log(startEventDate, "start event date", "end event date", endEventDate);
+
 
     // Validate times
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    if (start >= end) {
-      return res.status(400).json({ error: "End time must be after start time" });
+    const start = moment(startTime);
+    const end = moment(endTime);
+
+    if (!start.isValid() || !end.isValid() || start.isSameOrAfter(end)) {
+      return res.status(400).json({ error: "Invalid start or end time" });
     }
 
-    // Convert start and end event dates to moment objects
+    // Validate event dates
+    let startDate = moment(startEventDate, "YYYY-MM-DD");
+    let endDate = moment(endEventDate, "YYYY-MM-DD");
 
-    const startDate = moment(startEventDate);
-    const endDate = moment(endEventDate);
+    console.log(startDate, "start date", endDate, "end date");
 
-    if (startDate.isAfter(endDate)) {
-      return res.status(400).json({ error: "End Date must be after Start Date" });
+
+    if (!startDate.isValid() || !endDate.isValid() || startDate.isAfter(endDate)) {
+      return res.status(400).json({ error: "Invalid event dates" });
     }
 
     const dayMap = {
@@ -65,30 +70,26 @@ exports.createClass = async (req, res, next) => {
     };
 
     // Validate selected days
-
     if (!Array.isArray(selectedDays) || selectedDays.length === 0) {
       return res.status(400).json({ error: "Please select at least one day." });
     }
 
     const selectedDayNumbers = selectedDays.map(day => dayMap[day]);
-
     const events = [];
-    let currentDate = moment(startDate);
+    let currentDate = startDate.clone().add(1, 'days');
 
-    const isMultiDay = !moment(startDate).isSame(endDate, 'day');
+    console.log(currentDate, "currentDate: ");
+
+
+    const isMultiDay = !startDate.isSame(endDate, 'day');
     const groupID = isMultiDay ? new mongoose.Types.ObjectId() : null;
 
     // Loop through dates and create classes only on selected days
-
-    while (currentDate.isSameOrBefore(endDate)) {
+    while (!currentDate.isAfter(endDate)) {
       if (selectedDayNumbers.includes(currentDate.day())) {
-        const dayStart = moment(currentDate)
-          .set({ hour: start.getHours(), minute: start.getMinutes() })
-          .toDate();
-
-        const dayEnd = moment(currentDate)
-          .set({ hour: end.getHours(), minute: end.getMinutes() })
-          .toDate();
+        const dayStart = moment(currentDate).set({ hour: start.hours(), minute: start.minutes() }).toDate();
+        const dayEnd = moment(currentDate).set({ hour: end.hours(), minute: end.minutes() }).toDate();
+        console.log(dayStart, "dayStart", dayEnd, "dayEnd");
 
         // Check for teacher conflicts on this specific day
         const teacherConflict = await Class.findOne({
@@ -127,7 +128,7 @@ exports.createClass = async (req, res, next) => {
       }
 
       // Move to the next day
-      currentDate = currentDate.add(1, "day");
+      currentDate.add(1, "day");
     }
 
     if (events.length === 0) {
@@ -143,6 +144,8 @@ exports.createClass = async (req, res, next) => {
     return res.status(500).json({ error: "An error occurred while creating the class" });
   }
 };
+
+
 
 
 exports.updateClass = async (req, res, next) => {
