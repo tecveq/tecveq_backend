@@ -701,7 +701,7 @@ exports.submitAttendence = async (req, res, next) => {
       return;
     }
 
-    const enableHeadAttendance = settings.mode.enableHeadAttendance;
+    const enableHeadAttendance = settings.attendenceSetting.enableHeadAttendance;
 
 
     if (enableHeadAttendance) {
