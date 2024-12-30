@@ -4,11 +4,10 @@ const Class = require("../models/class");
 const Notification = require("../models/notification");
 const Attendance = require("../models/attendence");
 const User = require("../models/user");
-const AttendanceSettingsSchema = require("../models/settingsModel");
-
 const mongoose = require("mongoose");
 const moment = require("moment");
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
+const Setting = require("../models/settingsModel");
 
 
 exports.createClass = async (req, res, next) => {
@@ -694,7 +693,7 @@ exports.submitAttendence = async (req, res, next) => {
     await Class.findByIdAndUpdate(id, { attendance: data }, { new: true });
 
 
-    const settings = await AttendanceSettingsSchema.findOne()
+    const settings = await Setting.findOne()
 
     if (!settings) {
       console.log("No settings found.");
