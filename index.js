@@ -33,6 +33,7 @@ const quizRouter = require("./routes/quiz");
 const { io } = require("./utils/socket");
 const { checkLoggedIn } = require("./middlewares/checkLoggedIn");
 const authRouter = require("./routes/auth");
+const settingsRouter = require("./routes/settingsRouter")
 const Level = require("./models/level");
 const User = require("./models/user");
 var app = express();
@@ -87,6 +88,8 @@ app.use("/api/feedback/", checkLoggedIn, feedbackRouter);
 app.use("/api/classroom/", checkLoggedIn, classoomRouter);
 app.use("/api/classroom/attendence", checkLoggedIn, attendenceRouter);
 app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
+app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
+app.use("/api/settings/", checkLoggedIn, settingsRouter);
 app.use("/api/notification/", checkLoggedIn, notificationRouter);
 app.use("/api/announcement/", checkLoggedIn, announcementRouter);
 app.use("/api/parent", require("./routes/parent"));

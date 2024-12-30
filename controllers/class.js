@@ -4,10 +4,10 @@ const Class = require("../models/class");
 const Notification = require("../models/notification");
 const Attendance = require("../models/attendence");
 const User = require("../models/user");
-
 const mongoose = require("mongoose");
 const moment = require("moment");
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
+const Setting = require("../models/settingsModel");
 
 
 exports.createClass = async (req, res, next) => {
@@ -35,20 +35,27 @@ exports.createClass = async (req, res, next) => {
       return res.status(400).json({ error: "Subject does not exist" });
     }
 
+    console.log(startTime, "startTime", "endTime", endTime);
+    console.log(startEventDate, "start event date", "end event date", endEventDate);
+
+
     // Validate times
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    if (start >= end) {
-      return res.status(400).json({ error: "End time must be after start time" });
+    const start = moment(startTime);
+    const end = moment(endTime);
+
+    if (!start.isValid() || !end.isValid() || start.isSameOrAfter(end)) {
+      return res.status(400).json({ error: "Invalid start or end time" });
     }
 
-    // Convert start and end event dates to moment objects
+    // Validate event dates
+    let startDate = moment(startEventDate, "YYYY-MM-DD");
+    let endDate = moment(endEventDate, "YYYY-MM-DD");
 
-    const startDate = moment(startEventDate);
-    const endDate = moment(endEventDate);
+    console.log(startDate, "start date", endDate, "end date");
 
-    if (startDate.isAfter(endDate)) {
-      return res.status(400).json({ error: "End Date must be after Start Date" });
+
+    if (!startDate.isValid() || !endDate.isValid() || startDate.isAfter(endDate)) {
+      return res.status(400).json({ error: "Invalid event dates" });
     }
 
     const dayMap = {
@@ -62,30 +69,26 @@ exports.createClass = async (req, res, next) => {
     };
 
     // Validate selected days
-
     if (!Array.isArray(selectedDays) || selectedDays.length === 0) {
       return res.status(400).json({ error: "Please select at least one day." });
     }
 
     const selectedDayNumbers = selectedDays.map(day => dayMap[day]);
-
     const events = [];
-    let currentDate = moment(startDate);
+    let currentDate = startDate.clone().add(1, 'days');
 
-    const isMultiDay = !moment(startDate).isSame(endDate, 'day');
+    console.log(currentDate, "currentDate: ");
+
+
+    const isMultiDay = !startDate.isSame(endDate, 'day');
     const groupID = isMultiDay ? new mongoose.Types.ObjectId() : null;
 
     // Loop through dates and create classes only on selected days
-
-    while (currentDate.isSameOrBefore(endDate)) {
+    while (!currentDate.isAfter(endDate)) {
       if (selectedDayNumbers.includes(currentDate.day())) {
-        const dayStart = moment(currentDate)
-          .set({ hour: start.getHours(), minute: start.getMinutes() })
-          .toDate();
-
-        const dayEnd = moment(currentDate)
-          .set({ hour: end.getHours(), minute: end.getMinutes() })
-          .toDate();
+        const dayStart = moment(currentDate).set({ hour: start.hours(), minute: start.minutes() }).toDate();
+        const dayEnd = moment(currentDate).set({ hour: end.hours(), minute: end.minutes() }).toDate();
+        console.log(dayStart, "dayStart", dayEnd, "dayEnd");
 
         // Check for teacher conflicts on this specific day
         const teacherConflict = await Class.findOne({
@@ -124,7 +127,7 @@ exports.createClass = async (req, res, next) => {
       }
 
       // Move to the next day
-      currentDate = currentDate.add(1, "day");
+      currentDate.add(1, "day");
     }
 
     if (events.length === 0) {
@@ -142,6 +145,8 @@ exports.createClass = async (req, res, next) => {
 };
 
 
+
+
 exports.updateClass = async (req, res, next) => {
   try {
     const {
@@ -150,7 +155,7 @@ exports.updateClass = async (req, res, next) => {
       endTime,
       startEventDate,
       endEventDate,
-      status, // true or false
+      updateSeries, // boolean value true /false
     } = req.body;
 
     // Validate class
@@ -162,7 +167,7 @@ exports.updateClass = async (req, res, next) => {
     const start = new Date(startTime);
     const end = new Date(endTime);
 
- 
+
 
     const startDate = moment(startEventDate);
     const endDate = moment(startEventDate);
@@ -185,7 +190,7 @@ exports.updateClass = async (req, res, next) => {
 
     // Handle group updates
     if (existingClass.groupID) {
-      if (status) {
+      if (updateSeries) {
         const existingClasses = await Class.find({ groupID: existingClass.groupID });
 
         existingClasses.forEach(async (cls) => {
@@ -679,7 +684,6 @@ exports.submitAttendence = async (req, res, next) => {
     // Fetch the class details
     const studentClass = await Class.findById(id).populate('subjectID');
 
-    console.log(studentClass, "student class details");
 
     if (!studentClass) {
       return res.status(404).json({ message: "Class not found" });
@@ -688,80 +692,94 @@ exports.submitAttendence = async (req, res, next) => {
     // Update attendance for the class
     await Class.findByIdAndUpdate(id, { attendance: data }, { new: true });
 
+
+    const settings = await Setting.findOne()
+
+    if (!settings) {
+      console.log("No settings found.");
+      return;
+    }
+
+    const enableHeadAttendance = settings.attendenceSetting.enableHeadAttendance;
+
+
+    if (enableHeadAttendance) {
+      const todayStart = new Date(startTime).setHours(0, 0, 0, 0); // Start of the day (00:00:00)
+      const todayEnd = new Date(startTime).setHours(23, 59, 59, 999); // End of the day (23:59:59)
+
+      // Fetch today's head attendance record
+      const headAttendance = await Attendance.findOne({
+        entityId: classroomID,
+        Date: { $gte: todayStart, $lt: todayEnd },
+      });
+
+      if (!headAttendance) {
+        return res.status(400).json({ message: "No head attendance record found for today" });
+      }
+
+      // Compare attendance between head and teacher
+      const absentStudents = data
+        .filter(student => !student.isPresent)
+        .map(student => student.studentID.toString());
+
+      const headPresentStudents = headAttendance.students
+        .filter(student => student.isPresent)
+        .map(student => student.studentID.toString());
+
+      const discrepancyStudents = absentStudents.filter(student =>
+        headPresentStudents.includes(student)
+      );
+
+      if (discrepancyStudents.length > 0) {
+        // Construct the detailed message for the admin notification
+        const classTitle = studentClass.title;
+        const subjectName = studentClass.subjectID.name; // Assuming subjectID has a 'name' field
+
+        const admins = await User.findOne({ userType: "admin" });
+
+
+
+        // Fetch students and their guardians
+
+        const students = await User.find({
+          _id: { $in: discrepancyStudents },
+        });
+
+        //  Create a map of student names and extract guardian IDs
+
+        const studentMap = students.reduce((map, student) => {
+          map[student._id.toString()] = student.name;
+          return map;
+        }, {});
+
+        // Extract guardian IDs from the student records
+
+        const guardianIds = students
+          .filter(student => student.guardianId) // Ensure the student has a guardianId
+          .map(student => student.guardianId.toString());
+
+        //  Combine admin ID with unique guardian IDs
+
+        const deliveredTo = [admins?._id, ...new Set(guardianIds)]; // Use `Set` to avoid duplicate IDs
+
+        //  Generate notifications using the lookup map
+
+        const notifications = discrepancyStudents.map(studentID => {
+          const studentName = studentMap[studentID] || "Unknown Student";
+          return {
+            userID: req.user._id, // Admin's User ID
+            message: ` Student ${studentName} (Id: ${studentID}) is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present earlier in the head attendance.`,
+            url: `/students/${studentID}`, // URL to the student's page
+            deliveredTo: deliveredTo, // Deliver to admin and guardians
+          };
+        });
+
+        // Send notifications
+        await Notification.insertMany(notifications);
+      }
+
+    }
     // Fetch today's start date (ensure it is in UTC)
-    const todayStart = new Date(startTime).setHours(0, 0, 0, 0); // Start of the day (00:00:00)
-    const todayEnd = new Date(startTime).setHours(23, 59, 59, 999); // End of the day (23:59:59)
-
-    // Fetch today's head attendance record
-    const headAttendance = await Attendance.findOne({
-      entityId: classroomID,
-      Date: { $gte: todayStart, $lt: todayEnd },
-    });
-
-    if (!headAttendance) {
-      return res.status(400).json({ message: "No head attendance record found for today" });
-    }
-
-    // Compare attendance between head and teacher
-    const absentStudents = data
-      .filter(student => !student.isPresent)
-      .map(student => student.studentID.toString());
-
-    const headPresentStudents = headAttendance.students
-      .filter(student => student.isPresent)
-      .map(student => student.studentID.toString());
-
-    const discrepancyStudents = absentStudents.filter(student =>
-      headPresentStudents.includes(student)
-    );
-
-    if (discrepancyStudents.length > 0) {
-      // Construct the detailed message for the admin notification
-      const classTitle = studentClass.title;
-      const subjectName = studentClass.subjectID.name; // Assuming subjectID has a 'name' field
-
-      const admins = await User.findOne({ userType: "admin" });
-
-
-
-      // Fetch students and their guardians
-
-      const students = await User.find({
-        _id: { $in: discrepancyStudents },
-      });
-
-      //  Create a map of student names and extract guardian IDs
-
-      const studentMap = students.reduce((map, student) => {
-        map[student._id.toString()] = student.name;
-        return map;
-      }, {});
-
-      // Extract guardian IDs from the student records
-
-      const guardianIds = students
-        .filter(student => student.guardianId) // Ensure the student has a guardianId
-        .map(student => student.guardianId.toString());
-
-      //  Combine admin ID with unique guardian IDs
-
-      const deliveredTo = [admins?._id, ...new Set(guardianIds)]; // Use `Set` to avoid duplicate IDs
-
-      //  Generate notifications using the lookup map
-
-      const notifications = discrepancyStudents.map(studentID => {
-        const studentName = studentMap[studentID] || "Unknown Student";
-        return {
-          userID: req.user._id, // Admin's User ID
-          message: `Student with Id: ${studentID} and Student Name: ${studentName} is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present in the head attendance.`,
-          url: `/students/${studentID}`, // URL to the student's page
-          deliveredTo: deliveredTo, // Deliver to admin and guardians
-        };
-      });
-
-      // Send notifications
-      await Notification.insertMany(notifications);
-    }
 
 
     return res.status(200).json({ message: "Class attendance updated successfully!" });
