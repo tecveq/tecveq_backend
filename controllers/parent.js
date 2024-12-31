@@ -8,6 +8,9 @@ const Class = require("../models/class");
 
 exports.getStudentReportForParent = async (req, res, next) => {
   try {
+
+    console.log("inside function");
+
     const { studentID } = req.params;
     const { classroomID, subjectID, teacherID } = req.query;
 
@@ -75,16 +78,19 @@ exports.getStudentReportForParent = async (req, res, next) => {
 
     if (classes.length > 0) {
       avgAttendancePer = (
-        (classes.reduce(
-          (total, classs) =>
-            total +
-              classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true ? 1 : 0,
-          0
-        ) /
-          classes.reduce(
-            (total, classs) => total + classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true ? 1 : 1, 0
-          )
-        ) *
+        (classes.reduce((total, classs) => {
+          const attendanceRecord = classs?.attendance?.find(
+            (sub) => sub.studentID.toString() === studentID
+          );
+          return total + (attendanceRecord?.isPresent === true ? 1 : 0);
+        }, 0) /
+          classes.reduce((total, classs) => {
+            const attendanceRecord = classs?.attendance?.find(
+              (sub) => sub.studentID.toString() === studentID
+            );
+            // Default to counting the class even if no attendance record exists
+            return total + (attendanceRecord ? 1 : 1);
+          }, 0)) *
         100
       ).toFixed(0);
     }

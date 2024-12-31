@@ -86,7 +86,10 @@ app.use("/api/class/", checkLoggedIn, classRouter);
 app.use("/api/subject/", checkLoggedIn, subjectRouter);
 app.use("/api/feedback/", checkLoggedIn, feedbackRouter);
 app.use("/api/classroom/", checkLoggedIn, classoomRouter);
-app.use("/api/classroom/attendence", checkLoggedIn, attendenceRouter);
+app.use(
+  "/api/classroom/attendence",
+  checkLoggedIn,
+  attendenceRouter);
 app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
 app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
 app.use("/api/settings/", checkLoggedIn, settingsRouter);
