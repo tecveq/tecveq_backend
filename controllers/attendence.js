@@ -108,4 +108,53 @@ exports.getClassroomAttendence = async (req, res, next) => {
 
 
 
+exports.getOverallAttendenceOfSubjects = async (req, res, next) => {
+
+    console.log("inside the function");
+
+    try {
+        const { studentID } = req.params;
+
+        // Find all classes where the student has attendance records
+        const classes = await Class.find({
+            "attendance.studentID": studentID,
+        });
+
+        let present = 0;
+        let absent = 0;
+        let late = 0;
+
+        // Calculate attendance stats
+        classes.forEach((cls) => {
+            const attendanceRecord = cls.attendance.find(
+                (record) => record.studentID.toString() === studentID
+            );
+
+            if (attendanceRecord) {
+                if (attendanceRecord.isPresent) {
+                    if (attendanceRecord.late) {
+                        late++;
+                    }
+                    present++;
+                } else {
+                    absent++;
+                }
+            }
+        });
+
+        // Prepare chart data
+        const chartData = [
+            { label: "Present", value: present },
+            { label: "Absent", value: absent },
+            { label: "Late", value: late },
+        ];
+
+        res.status(200).json(chartData);
+    } catch (error) {
+        console.error("Error fetching attendance stats:", error);
+        next(error);
+    }
+};
+
+
 

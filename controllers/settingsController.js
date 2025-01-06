@@ -49,7 +49,7 @@ exports.updateHeadAttendanceSetting = async (req, res, next) => {
     }
 };
 
-exports.getHeadAttendanceSetting = async (req, res, next) => {
+exports.getSettings = async (req, res, next) => {
     try {
         console.log("run inside function");
 

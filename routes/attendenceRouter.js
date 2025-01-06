@@ -8,6 +8,14 @@ authRouter.get("/get-attandence/:classroomID", controller.getClassroomAttendence
 authRouter.put("/update-attandence/:classroomID", controller.updateClassroomAttendence);
 
 
+// get all subjects attendence of student
+
+
+authRouter.get("/student-all-subjects-attendence/:studentID", controller.getOverallAttendenceOfSubjects);
+
+
+
+
 
 
 
