@@ -8,6 +8,9 @@ const Class = require("../models/class");
 
 exports.getStudentReportForParent = async (req, res, next) => {
   try {
+
+    console.log("inside function");
+
     const { studentID } = req.params;
     const { classroomID, subjectID, teacherID } = req.query;
 
@@ -74,20 +77,33 @@ exports.getStudentReportForParent = async (req, res, next) => {
     }
 
     if (classes.length > 0) {
-      avgAttendancePer = (
-        (classes.reduce(
-          (total, classs) =>
-            total +
-              classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true ? 1 : 0,
-          0
-        ) /
-          classes.reduce(
-            (total, classs) => total + classs.attendance.find((sub) => sub.studentID.toString() == studentID).isPresent == true ? 1 : 1, 0
-          )
-        ) *
-        100
-      ).toFixed(0);
+      const totalPresent = classes.reduce((total, classs) => {
+        const attendanceRecord = classs?.attendance?.find(
+          (sub) => sub.studentID.toString() === studentID
+        );
+        // Count 'present' or 'late' as attended
+        return total + ((attendanceRecord?.isPresent === true || attendanceRecord?.late === true) ? 1 : 0);
+      }, 0);
+
+      const totalClasses = classes.reduce((total, classs) => {
+        const attendanceRecord = classs?.attendance?.find(
+          (sub) => sub.studentID.toString() === studentID
+        );
+        return total + (attendanceRecord ? 1 : 1); // Count every class
+      }, 0);
+
+      const totalLate = classes.reduce((total, classs) => {
+        const attendanceRecord = classs?.attendance?.find(
+          (sub) => sub.studentID.toString() === studentID
+        );
+        return total + (attendanceRecord?.late === true ? 1 : 0);
+      }, 0);
+
+      // Calculate percentages
+      avgAttendancePer = ((totalPresent / totalClasses) * 100).toFixed(0);
+      avgLatePer = ((totalLate / totalClasses) * 100).toFixed(0);
     }
+
 
     res.send({
       user: user._doc,
@@ -138,15 +154,19 @@ exports.getStudentReportForParent = async (req, res, next) => {
       }),
 
       attendance: classes.map((cls) => {
+        const attendanceRecord = cls.attendance.find(
+          (att) => att.studentID.toString() == studentID
+        );
         return {
           className: cls.title,
           startTime: cls.startTime,
           endTime: cls.endTime,
-          attendancePercentage: cls.attendance.find(
-            (att) => att.studentID.toString() == studentID
-          )
-        }
-      })
+          isPresent: attendanceRecord?.isPresent || false,
+          isLate: attendanceRecord?.late || false,
+        };
+      }),
+      averageAttendancePercentage: avgAttendancePer,
+      averageLatePercentage: avgLatePer,
     });
   } catch (error) {
     next(error);
@@ -295,3 +315,85 @@ exports.getChilSubjects = async (req, res, next) => {
 
 
 exports.getParentChats;
+
+
+
+
+
+
+
+exports.getStudentLastDeliveredAssignmentReport = async (req, res, next) => {
+  try {
+    console.log("Inside function");
+
+    const { studentID } = req.params;
+
+    // Fetch student details
+    const user = await User.findById(studentID).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    // Get all classrooms where the student is present
+    const classrooms = await Classroom.find({
+      students: studentID,
+    });
+
+    if (!classrooms || classrooms.length === 0) {
+      return res.status(404).json({ message: "No classrooms found for student" });
+    }
+
+    let avgAssMarksPer = 0;
+    let grade = "F";
+
+    // Collect all subject and classroom IDs
+    const classroomIDs = classrooms.map(classroom => classroom._id);
+    const subjectIDs = classrooms.flatMap(classroom => classroom.teachers.map(teacher => teacher.subject));
+
+    // Fetch all assignments in one database query
+    const allAssignments = await Assignment.find({
+      classroomID: { $in: classroomIDs },
+      subjectID: { $in: subjectIDs },
+      submissions: { $elemMatch: { studentID } },
+    });
+
+    // Calculate percentage and grade for the last delivered assignment
+    if (allAssignments.length > 0) {
+      const lastAssignment = allAssignments[allAssignments.length - 1];
+      const submission = lastAssignment.submissions.find(
+        (sub) => sub.studentID.toString() === studentID
+      );
+
+      if (submission && submission.marks !== undefined) {
+        avgAssMarksPer = (
+          (submission.marks / lastAssignment.totalMarks) * 100
+        ).toFixed(0);
+
+        grade = avgAssMarksPer > 90
+          ? "A"
+          : avgAssMarksPer > 80
+          ? "B"
+          : avgAssMarksPer > 70
+          ? "C"
+          : avgAssMarksPer > 60
+          ? "D"
+          : "F";
+      }
+    }
+
+    // Send the response
+    res.send({
+      user: user._doc,
+      lastAssignment: allAssignments.length > 0 ? {
+        title: allAssignments[allAssignments.length - 1].title,
+        marksObtained: allAssignments[allAssignments.length - 1].submissions.find(
+          (sub) => sub.studentID.toString() == studentID
+        ).marks,
+        percentage: avgAssMarksPer,
+        grade,
+      } : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
