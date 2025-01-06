@@ -64,7 +64,8 @@ exports.createClass = async (req, res) => {
     const selectedDayNumbers = selectedDays.map(day => dayMap[day]);
     const events = [];
     let currentDate = startDate.clone();
-
+    const isMultiDay = !moment(startDate).isSame(endDate, 'day');
+    const groupID = isMultiDay ? new mongoose.Types.ObjectId() : null;
     // Loop through dates to create events on selected days
     while (currentDate.isSameOrBefore(endDate)) {
       if (selectedDayNumbers.includes(currentDate.day())) {
@@ -115,6 +116,7 @@ exports.createClass = async (req, res) => {
           startEventDate, // Add startEventDate
           endEventDate,   // Add endEventDate
           oneTime,        // Add oneTime
+          groupID
         });
       }
       currentDate.add(1, 'day');
@@ -139,6 +141,7 @@ exports.createClass = async (req, res) => {
 
 
 
+
 exports.updateClass = async (req, res, next) => {
   try {
     const {
@@ -147,7 +150,7 @@ exports.updateClass = async (req, res, next) => {
       endTime,
       startEventDate,
       endEventDate,
-      updateSeries, // boolean value true /false
+      updateSeries, // boolean value true / false
     } = req.body;
 
     // Validate class
@@ -156,29 +159,23 @@ exports.updateClass = async (req, res, next) => {
       return res.status(404).json({ error: "Class not found" });
     }
 
-    const start = new Date(startTime);
-    const end = new Date(endTime);
+    const start = moment.utc(startTime).tz('Asia/Karachi').subtract(5, "hours");  // Convert to PKT timezone
+    const end = moment.utc(endTime).tz('Asia/Karachi').subtract(5, "hours");  // Convert to PKT timezone
 
+    const startDate = moment(startEventDate).tz('Asia/Karachi');  // Convert to PKT timezone
+    const endDate = moment(endEventDate).tz('Asia/Karachi');  // Convert to PKT timezone
 
+    const updatedStartTime = start.set({
+      year: startDate.year(),
+      month: startDate.month(),
+      date: startDate.date(),
+    }).toISOString();
 
-    const startDate = moment(startEventDate);
-    const endDate = moment(startEventDate);
-
-    const updatedStartTime = moment(start)
-      .set({
-        year: startDate.year(),
-        month: startDate.month(),
-        date: startDate.date(),
-      })
-      .toISOString();
-
-    const updatedEndTime = moment(end)
-      .set({
-        year: startDate.year(),
-        month: startDate.month(),
-        date: startDate.date(),
-      })
-      .toISOString();
+    const updatedEndTime = end.set({
+      year: startDate.year(),
+      month: startDate.month(),
+      date: startDate.date(),
+    }).toISOString();
 
     // Handle group updates
     if (existingClass.groupID) {
@@ -186,16 +183,16 @@ exports.updateClass = async (req, res, next) => {
         const existingClasses = await Class.find({ groupID: existingClass.groupID });
 
         existingClasses.forEach(async (cls) => {
-          const startDate = new Date(cls.startTime); // Get the existing startTime
-          const endDate = new Date(cls.endTime);     // Get the existing endTime
+          const clsStart = moment.utc(cls.startTime).tz('Asia/Karachi'); // Convert to PKT
+          const clsEnd = moment.utc(cls.endTime).tz('Asia/Karachi'); // Convert to PKT
 
           // Extract date parts
-          const startDateOnly = startDate.toISOString().split('T')[0]; // Get only the date
-          const endDateOnly = endDate.toISOString().split('T')[0];
+          const startDateOnly = clsStart.format('YYYY-MM-DD'); // Get only the date in PKT
+          const endDateOnly = clsEnd.format('YYYY-MM-DD');
 
           // Format new time
-          const newStartTime = `${startDateOnly}T${start.toISOString().split('T')[1]}`;
-          const newEndTime = `${endDateOnly}T${end.toISOString().split('T')[1]}`;
+          const newStartTime = `${startDateOnly}T${start.format('HH:mm:ss')}`;
+          const newEndTime = `${endDateOnly}T${end.format('HH:mm:ss')}`;
 
           // Update the document
           await Class.updateOne(
@@ -210,8 +207,8 @@ exports.updateClass = async (req, res, next) => {
         return res.status(200).json({ message: "All classes updated successfully" });
       } else {
         // Update only the current class
-        existingClass.startTime = start;
-        existingClass.endTime = end;
+        existingClass.startTime = updatedStartTime;
+        existingClass.endTime = updatedEndTime;
         await existingClass.save();
         return res.status(200).json({ message: "Single class updated successfully" });
       }
@@ -219,8 +216,8 @@ exports.updateClass = async (req, res, next) => {
       // Update single class (no groupID)
       existingClass.startTime = updatedStartTime;
       existingClass.endTime = updatedEndTime;
-      existingClass.startEventDate = startDate;
-      existingClass.endEventDate = startDate; // Same as startEventDate
+      existingClass.startEventDate = startDate.toISOString();
+      existingClass.endEventDate = endDate.toISOString(); // Same as startEventDate
       await existingClass.save();
       return res.status(200).json({
         data: existingClass,
@@ -232,6 +229,7 @@ exports.updateClass = async (req, res, next) => {
     return res.status(500).json({ error: "An error occurred while updating the class" });
   }
 };
+
 
 exports.rescheduleClass = async (req, res, next) => {
   try {
