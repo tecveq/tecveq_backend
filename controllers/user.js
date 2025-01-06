@@ -85,36 +85,41 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   passport.authenticate("local", async function (err, foundUser, info) {
     if (err) {
-      return next(err);
+      // If an error occurs during authentication, send a single error response
+      return res.status(500).send({ message: "Internal Server Error" });
     }
+
     if (!foundUser) {
-      return res.status(400).send(info.message);
+      // If the user is not found or password is incorrect, return a single error response
+      return res.status(400).send({ message: info.message });
     }
+
     console.log(foundUser, "found");
 
-
     try {
-      // Assuming `levelId` is stored in foundUser
+      // Fetch level details if the user exists
       const level = await Level.findOne(foundUser.levelId).lean();
       const levelName = level ? level.name : null;
 
-
-
+      // Attempt to log in the user
       req.logIn(foundUser, function (err) {
         if (err) {
-          return next(err);
+          return res.status(500).send({ message: "Failed to log in user" });
         }
-        // Attach levelName to the response
+
+        // Send successful response with additional data
         return res.send({
           ...foundUser.toObject(), // Convert Mongoose document to plain object
           levelName,
         });
       });
     } catch (fetchError) {
-      return next(fetchError);
+      // Catch errors while fetching level data
+      return res.status(500).send({ message: "Failed to fetch user data" });
     }
   })(req, res, next);
 };
+
 
 exports.logout = (req, res, next) => {
   try {
