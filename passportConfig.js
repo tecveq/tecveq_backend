@@ -51,7 +51,7 @@ exports.initializingPassport = (passport) => {
             console.log(validPass ,":password is checkinf:");
             
             if (!validPass) {
-              return done(null, false, { message: "Incorrect password" });
+              return done(null, false, { message: "The password you entered is incorrect. Please try again." });
             } else {
               return done(null, foundUser);
             }

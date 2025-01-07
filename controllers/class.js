@@ -5,14 +5,15 @@ const Notification = require("../models/notification");
 const Attendance = require("../models/attendence");
 const User = require("../models/user");
 const mongoose = require("mongoose");
-const moment = require("moment");
+const moment = require('moment-timezone');
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
 const Setting = require("../models/settingsModel");
 
 
-exports.createClass = async (req, res, next) => {
+exports.createClass = async (req, res) => {
   try {
     const {
+      title,
       startTime,
       endTime,
       startEventDate,
@@ -20,42 +21,34 @@ exports.createClass = async (req, res, next) => {
       classroomID,
       subjectID,
       teacher,
-      selectedDays, // Array of selected days like ["Monday", "Wednesday", "Friday"]
+      selectedDays,
+      meetingUrl,
+      oneTime // Make sure to extract `oneTime` from the request body
     } = req.body;
 
     // Validate classroom
     const classroom = await Classroom.findById(classroomID);
     if (!classroom) {
-      return res.status(400).json({ error: "Classroom does not exist" });
+      return res.status(400).json({ error: 'Classroom does not exist' });
     }
 
     // Validate subject
     const subject = await Subject.findById(subjectID);
     if (!subject) {
-      return res.status(400).json({ error: "Subject does not exist" });
-    }
-
-    console.log(startTime, "startTime", "endTime", endTime);
-    console.log(startEventDate, "start event date", "end event date", endEventDate);
-
-
-    // Validate times
-    const start = moment(startTime);
-    const end = moment(endTime);
-
-    if (!start.isValid() || !end.isValid() || start.isSameOrAfter(end)) {
-      return res.status(400).json({ error: "Invalid start or end time" });
+      return res.status(400).json({ error: 'Subject does not exist' });
     }
 
     // Validate event dates
-    let startDate = moment(startEventDate, "YYYY-MM-DD");
-    let endDate = moment(endEventDate, "YYYY-MM-DD");
-
-    console.log(startDate, "start date", endDate, "end date");
-
+    const startDate = moment.tz(startEventDate, 'Asia/Karachi');
+    const endDate = moment.tz(endEventDate, 'Asia/Karachi');
 
     if (!startDate.isValid() || !endDate.isValid() || startDate.isAfter(endDate)) {
-      return res.status(400).json({ error: "Invalid event dates" });
+      return res.status(400).json({ error: 'Invalid start or end event dates' });
+    }
+
+    // Validate selected days
+    if (!Array.isArray(selectedDays) || selectedDays.length === 0) {
+      return res.status(400).json({ error: 'Please select at least one day.' });
     }
 
     const dayMap = {
@@ -68,81 +61,83 @@ exports.createClass = async (req, res, next) => {
       Saturday: 6,
     };
 
-    // Validate selected days
-    if (!Array.isArray(selectedDays) || selectedDays.length === 0) {
-      return res.status(400).json({ error: "Please select at least one day." });
-    }
-
     const selectedDayNumbers = selectedDays.map(day => dayMap[day]);
     const events = [];
-    let currentDate = startDate.clone().add(1, 'days');
-
-    console.log(currentDate, "currentDate: ");
-
-
-    const isMultiDay = !startDate.isSame(endDate, 'day');
+    let currentDate = startDate.clone();
+    const isMultiDay = !moment(startDate).isSame(endDate, 'day');
     const groupID = isMultiDay ? new mongoose.Types.ObjectId() : null;
-
-    // Loop through dates and create classes only on selected days
-    while (!currentDate.isAfter(endDate)) {
+    // Loop through dates to create events on selected days
+    while (currentDate.isSameOrBefore(endDate)) {
       if (selectedDayNumbers.includes(currentDate.day())) {
-        const dayStart = moment(currentDate).set({ hour: start.hours(), minute: start.minutes() }).toDate();
-        const dayEnd = moment(currentDate).set({ hour: end.hours(), minute: end.minutes() }).toDate();
-        console.log(dayStart, "dayStart", dayEnd, "dayEnd");
+        // Ensure the start and end time are valid time strings (HH:mm:ss)
+        const dayStart = moment.tz(`${currentDate.format('YYYY-MM-DD')}T${startTime.split('T')[1]}`, 'Asia/Karachi').subtract(5, 'hours');
+        const dayEnd = moment.tz(`${currentDate.format('YYYY-MM-DD')}T${endTime.split('T')[1]}`, 'Asia/Karachi').subtract(5, 'hours');
 
-        // Check for teacher conflicts on this specific day
+        // Debugging: Log the parsed moment objects for start and end times
+        console.log('Parsed dayStart:', dayStart.format());
+        console.log('Parsed dayEnd:', dayEnd.format());
+
+        // Validate that start and end times are valid
+        if (!dayStart.isValid() || !dayEnd.isValid()) {
+          return res.status(400).json({
+            error: `Invalid start or end time for ${currentDate.format('YYYY-MM-DD')}`,
+            details: { startTime, endTime, dayStart, dayEnd }
+          });
+        }
+
+        // Ensure end time is after start time
+        if (dayEnd.isBefore(dayStart)) {
+          return res.status(400).json({ error: 'End time cannot be before start time' });
+        }
+
+        // Check for teacher conflict
         const teacherConflict = await Class.findOne({
-          "teacher.teacherID": teacher.teacherID,
-          startTime: { $lt: dayEnd },
-          endTime: { $gt: dayStart },
+          'teacher.teacherID': teacher.teacherID,
+          startTime: { $lt: dayEnd.toDate() },
+          endTime: { $gt: dayStart.toDate() },
         });
 
         if (teacherConflict) {
-          return res
-            .status(400)
-            .json({ error: `Teacher has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
+          return res.status(400).json({
+            error: `Teacher has a conflict on ${currentDate.format('YYYY-MM-DD')}`,
+          });
         }
 
-        // Check for student conflicts on this specific day
-        const studentConflict = await Class.findOne({
-          classroomID: { $in: classroom.students.map(s => s.studentID) },
-          startTime: { $lt: dayEnd },
-          endTime: { $gt: dayStart },
-        });
-
-        if (studentConflict) {
-          return res
-            .status(400)
-            .json({ error: `Student has a conflict on ${currentDate.format("YYYY-MM-DD")}` });
-        }
-
-        // Store the event
+        // Create event with all required fields
         events.push({
-          ...req.body,
-          startTime: dayStart,
-          endTime: dayEnd,
-          groupID: groupID,
+          title,
+          startTime: dayStart.toDate(),
+          endTime: dayEnd.toDate(),
+          classroomID,
+          subjectID,
+          teacher,
+          meetingUrl,
           createdBy: req.user._id,
+          startEventDate, // Add startEventDate
+          endEventDate,   // Add endEventDate
+          oneTime,        // Add oneTime
+          groupID
         });
       }
-
-      // Move to the next day
-      currentDate.add(1, "day");
+      currentDate.add(1, 'day');
     }
 
     if (events.length === 0) {
-      return res.status(400).json({ error: "No valid classes were scheduled. Please check your selected days." });
+      return res.status(400).json({
+        error: 'No valid classes were scheduled. Please check your selected days.',
+      });
     }
 
-    // Bulk save all events
+    // Bulk insert events into the database
     await Class.insertMany(events);
-
-    return res.status(201).json(events);
+    res.status(201).json({ message: 'Classes created successfully', events });
   } catch (err) {
-    console.error("Error creating class:", err.message, err.stack);
-    return res.status(500).json({ error: "An error occurred while creating the class" });
+    console.error('Error creating class:', err);
+    res.status(500).json({ error: 'An error occurred while creating the class' });
   }
 };
+
+
 
 
 
@@ -155,7 +150,7 @@ exports.updateClass = async (req, res, next) => {
       endTime,
       startEventDate,
       endEventDate,
-      updateSeries, // boolean value true /false
+      updateSeries, // boolean value true / false
     } = req.body;
 
     // Validate class
@@ -164,29 +159,23 @@ exports.updateClass = async (req, res, next) => {
       return res.status(404).json({ error: "Class not found" });
     }
 
-    const start = new Date(startTime);
-    const end = new Date(endTime);
+    const start = moment.utc(startTime).tz('Asia/Karachi').subtract(5, "hours");  // Convert to PKT timezone
+    const end = moment.utc(endTime).tz('Asia/Karachi').subtract(5, "hours");  // Convert to PKT timezone
 
+    const startDate = moment(startEventDate).tz('Asia/Karachi');  // Convert to PKT timezone
+    const endDate = moment(endEventDate).tz('Asia/Karachi');  // Convert to PKT timezone
 
+    const updatedStartTime = start.set({
+      year: startDate.year(),
+      month: startDate.month(),
+      date: startDate.date(),
+    }).toISOString();
 
-    const startDate = moment(startEventDate);
-    const endDate = moment(startEventDate);
-
-    const updatedStartTime = moment(start)
-      .set({
-        year: startDate.year(),
-        month: startDate.month(),
-        date: startDate.date(),
-      })
-      .toISOString();
-
-    const updatedEndTime = moment(end)
-      .set({
-        year: startDate.year(),
-        month: startDate.month(),
-        date: startDate.date(),
-      })
-      .toISOString();
+    const updatedEndTime = end.set({
+      year: startDate.year(),
+      month: startDate.month(),
+      date: startDate.date(),
+    }).toISOString();
 
     // Handle group updates
     if (existingClass.groupID) {
@@ -194,16 +183,16 @@ exports.updateClass = async (req, res, next) => {
         const existingClasses = await Class.find({ groupID: existingClass.groupID });
 
         existingClasses.forEach(async (cls) => {
-          const startDate = new Date(cls.startTime); // Get the existing startTime
-          const endDate = new Date(cls.endTime);     // Get the existing endTime
+          const clsStart = moment.utc(cls.startTime).tz('Asia/Karachi'); // Convert to PKT
+          const clsEnd = moment.utc(cls.endTime).tz('Asia/Karachi'); // Convert to PKT
 
           // Extract date parts
-          const startDateOnly = startDate.toISOString().split('T')[0]; // Get only the date
-          const endDateOnly = endDate.toISOString().split('T')[0];
+          const startDateOnly = clsStart.format('YYYY-MM-DD'); // Get only the date in PKT
+          const endDateOnly = clsEnd.format('YYYY-MM-DD');
 
           // Format new time
-          const newStartTime = `${startDateOnly}T${start.toISOString().split('T')[1]}`;
-          const newEndTime = `${endDateOnly}T${end.toISOString().split('T')[1]}`;
+          const newStartTime = `${startDateOnly}T${start.format('HH:mm:ss')}`;
+          const newEndTime = `${endDateOnly}T${end.format('HH:mm:ss')}`;
 
           // Update the document
           await Class.updateOne(
@@ -218,8 +207,8 @@ exports.updateClass = async (req, res, next) => {
         return res.status(200).json({ message: "All classes updated successfully" });
       } else {
         // Update only the current class
-        existingClass.startTime = start;
-        existingClass.endTime = end;
+        existingClass.startTime = updatedStartTime;
+        existingClass.endTime = updatedEndTime;
         await existingClass.save();
         return res.status(200).json({ message: "Single class updated successfully" });
       }
@@ -227,8 +216,8 @@ exports.updateClass = async (req, res, next) => {
       // Update single class (no groupID)
       existingClass.startTime = updatedStartTime;
       existingClass.endTime = updatedEndTime;
-      existingClass.startEventDate = startDate;
-      existingClass.endEventDate = startDate; // Same as startEventDate
+      existingClass.startEventDate = startDate.toISOString();
+      existingClass.endEventDate = endDate.toISOString(); // Same as startEventDate
       await existingClass.save();
       return res.status(200).json({
         data: existingClass,
@@ -240,6 +229,7 @@ exports.updateClass = async (req, res, next) => {
     return res.status(500).json({ error: "An error occurred while updating the class" });
   }
 };
+
 
 exports.rescheduleClass = async (req, res, next) => {
   try {
