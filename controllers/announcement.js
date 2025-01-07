@@ -1,5 +1,5 @@
 const Announcement = require("../models/announcement");
-
+const User = require("../models/user");
 exports.createAnnouncement = async (req, res, next) => {
   try {
     const data = req.body;
@@ -18,7 +18,7 @@ exports.getAnnouncementsByType = async (req, res, next) => {
     const announcements = await Announcement.find({ type: req.params.type });
 
     return res.status(200).send(announcements);
-  } catch (err) {}
+  } catch (err) { }
 };
 exports.getAnnouncements = async (req, res, next) => {
   try {
@@ -48,6 +48,51 @@ exports.deleteAnnouncement = async (req, res, next) => {
     await Announcement.findByIdAndDelete(req.params.id);
 
     return res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
+
+exports.getAnnouncementsByUserType = async (req, res, next) => {
+  try {
+    // Get the userType of the logged-in user
+    const userId = req.user._id;  // Assuming you have userId from the session or JWT token
+
+    console.log(userId ,"current user");
+    
+    const user = await User.findById(userId);
+
+    console.log(user ,"all user data");
+    
+
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    // Determine visibility for this user based on their userType
+    let visibilityFilter = 'all';  // Default to 'all' in case something goes wrong
+
+    if (user.userType === 'student') {
+      visibilityFilter = 'student';
+    } else if (user.userType === 'parent') {
+      visibilityFilter = 'parent';
+    } else if (user.userType === 'teacher') {
+      visibilityFilter = 'teacher';
+    }
+
+    // Fetch announcements based on visibility
+    const announcements = await Announcement.find({
+      $or: [
+        { visibility: 'all' }, // Visible to everyone
+        { visibility: visibilityFilter }, // Visible based on the user's type
+      ],
+    });
+
+    return res.status(200).send(announcements);
+
   } catch (err) {
     next(err);
   }
