@@ -140,8 +140,6 @@ exports.createClass = async (req, res) => {
 
 
 
-
-
 exports.updateClass = async (req, res, next) => {
   try {
     const {
@@ -159,8 +157,16 @@ exports.updateClass = async (req, res, next) => {
       return res.status(404).json({ error: "Class not found" });
     }
 
+    console.log(startTime, "start time");
+    console.log(endTime, "end time");
+
+
     const start = moment.utc(startTime).tz('Asia/Karachi').subtract(5, "hours");  // Convert to PKT timezone
     const end = moment.utc(endTime).tz('Asia/Karachi').subtract(5, "hours");  // Convert to PKT timezone
+
+    console.log(start, "start");
+    console.log(end, "end");
+
 
     const startDate = moment(startEventDate).tz('Asia/Karachi');  // Convert to PKT timezone
     const endDate = moment(endEventDate).tz('Asia/Karachi');  // Convert to PKT timezone
@@ -437,22 +443,28 @@ exports.markTeacherPresent = async (req, res, next) => {
 
 exports.getClasses = async (req, res, next) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, teacherID } = req.query;
 
-    // set end date to 1 week from start date
-    // let endDate = new Date(startDate);
-    // endDate.setDate(endDate.getDate() + 7);
-    // endDate = endDate.toISOString();
-    console.log(startDate, endDate);
-    console.log(new Date(startDate), new Date(endDate));
+    // Parse startDate and endDate
+    console.log("Start Date:", startDate);
+    console.log("End Date:", endDate);
 
-    const date = moment(startDate, moment.ISO_8601, true);
+    // Validate dates and convert them to Date objects
+    const start = startDate ? new Date(startDate) : new Date();
+    const end = endDate ? new Date(endDate) : new Date();
+    if (!endDate) {
+      end.setDate(start.getDate() + 7); // Default to 1 week from start if no end date
+    }
 
-    console.log(date.isValid());
+    console.log("Parsed Start Date:", start);
+    console.log("Parsed End Date:", end);
 
+    // Ensure teacherID is passed correctly, and parse the user ID for filtering
     const userRole = req.user.userType;
     const userId = req.user._id;
     const userID = mongoose.Types.ObjectId(userId); // Replace userId with the actual user ID
+
+    // Initialize the aggregation pipeline
     const pipeline = [
       {
         $lookup: {
@@ -491,51 +503,38 @@ exports.getClasses = async (req, res, next) => {
         $match: {
           $expr: {
             $and: [
-              {
-                $gte: [
-                  { $toDate: "$startTime" },
-                  { $toDate: new Date(startDate).toDateString() },
-                ],
-              },
-              {
-                $lte: [
-                  { $toDate: "$endTime" },
-                  { $toDate: new Date(endDate).toDateString() },
-                ],
-              },
+              { $gte: ["$startTime", start] },
+              { $lte: ["$endTime", end] },
             ],
           },
         },
       },
     ];
 
-    // // Match based on user role
-    if (userRole === "admin") {
-      // If user is admin, return all classes within the date range
+    // Apply filtering based on the teacherID if provided
+    if (teacherID && teacherID !== '') {
+      // Filter by specific teacher if teacherID is provided
       pipeline.push({
-        $match: {
-          "classroom.students": { $exists: true },
-        },
+        $match: { "teacher.teacherID._id": mongoose.Types.ObjectId(teacherID) },
+      });
+    } else if (userRole === "admin") {
+      // Admin sees all classes
+      pipeline.push({
+        $match: { "classroom.students": { $exists: true } },
       });
     } else if (userRole === "teacher") {
-      // If user is a teacher, return only classes of the teacher within the date range
+      // Teacher sees their own classes
       pipeline.push({
-        $match: {
-          "teacher.teacherID._id": userID,
-        },
+        $match: { "teacher.teacherID._id": userID },
       });
     } else if (userRole === "student") {
-      // If user is a student, return only classes of the student within the date range
+      // Student sees only their enrolled classes
       pipeline.push({
-        $match: {
-          "classroom.students": userID,
-        },
+        $match: { "classroom.students": userID },
       });
     }
 
-    // Add any additional pipeline stages as needed
-
-    // Execute the pipeline
+    // Execute the aggregation pipeline
     const result = await Class.aggregate(pipeline);
 
     return res.status(200).send(result);
@@ -543,6 +542,118 @@ exports.getClasses = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+
+// exports.getClasses = async (req, res, next) => {
+//   try {
+//     const { startDate, endDate } = req.query;
+
+//     // set end date to 1 week from start date
+//     // let endDate = new Date(startDate);
+//     // endDate.setDate(endDate.getDate() + 7);
+//     // endDate = endDate.toISOString();
+//     console.log(startDate, endDate);
+//     console.log(new Date(startDate), new Date(endDate));
+
+//     const date = moment(startDate, moment.ISO_8601, true);
+
+//     console.log(date.isValid());
+
+//     const userRole = req.user.userType;
+//     const userId = req.user._id;
+//     const userID = mongoose.Types.ObjectId(userId); // Replace userId with the actual user ID
+//     const pipeline = [
+//       {
+//         $lookup: {
+//           from: "classrooms",
+//           localField: "classroomID",
+//           foreignField: "_id",
+//           as: "classroom",
+//         },
+//       },
+//       {
+//         $unwind: "$classroom",
+//       },
+//       {
+//         $lookup: {
+//           from: "subjects",
+//           localField: "subjectID",
+//           foreignField: "_id",
+//           as: "subjectID",
+//         },
+//       },
+//       {
+//         $unwind: "$subjectID",
+//       },
+//       {
+//         $lookup: {
+//           from: "users", // assuming "users" is the collection name for teachers
+//           localField: "teacher.teacherID",
+//           foreignField: "_id",
+//           as: "teacher.teacherID",
+//         },
+//       },
+//       {
+//         $unwind: "$teacher.teacherID",
+//       },
+//       {
+//         $match: {
+//           $expr: {
+//             $and: [
+//               {
+//                 $gte: [
+//                   { $toDate: "$startTime" },
+//                   { $toDate: new Date(startDate).toDateString() },
+//                 ],
+//               },
+//               {
+//                 $lte: [
+//                   { $toDate: "$endTime" },
+//                   { $toDate: new Date(endDate).toDateString() },
+//                 ],
+//               },
+//             ],
+//           },
+//         },
+//       },
+//     ];
+
+//     // // Match based on user role
+//     if (userRole === "admin") {
+//       // If user is admin, return all classes within the date range
+//       pipeline.push({
+//         $match: {
+//           "classroom.students": { $exists: true },
+//         },
+//       });
+//     } else if (userRole === "teacher") {
+//       // If user is a teacher, return only classes of the teacher within the date range
+//       pipeline.push({
+//         $match: {
+//           "teacher.teacherID._id": userID,
+//         },
+//       });
+//     } else if (userRole === "student") {
+//       // If user is a student, return only classes of the student within the date range
+//       pipeline.push({
+//         $match: {
+//           "classroom.students": userID,
+//         },
+//       });
+//     }
+
+//     // Add any additional pipeline stages as needed
+
+//     // Execute the pipeline
+//     const result = await Class.aggregate(pipeline);
+
+//     return res.status(200).send(result);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 exports.getTodayClasses = async (req, res, next) => {
   try {
