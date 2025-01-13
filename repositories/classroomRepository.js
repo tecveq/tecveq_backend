@@ -12,8 +12,8 @@ class ClassroomRepository {
         return await Classroom.findOne({ name, levelID });
     }
 
-    async findStudentClassroom(studentId) {
-        return await Classroom.findOne({ students: studentId });
+    async findClassroomsByStudentIds(studentIds) {
+        return await Classroom.findOne({ students: studentIds });
     }
 
     async findTeacherClassroom(teacherId) {
@@ -24,13 +24,9 @@ class ClassroomRepository {
         return await Classroom.findByIdAndUpdate(id, updateData, { new: true });
     }
 
-    async findSubjectById(subjectId) {
-        return await Subject.findById(subjectId);
-    }
 
-    async findLevelById(levelId) {
-        return await Level.findById(levelId);
-    }
+
+
 }
 
 module.exports = new ClassroomRepository();

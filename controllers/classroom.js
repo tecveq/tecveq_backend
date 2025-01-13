@@ -4,6 +4,8 @@ const Class = require("../models/class");
 const Chatroom = require("../models/chatroom");
 const Level = require("../models/level");
 const classroomRepository = require("../repositories/classroomRepository");
+const levelRepository = require("../repositories/levelRepository");
+const subjectRepository = require("../repositories/subjectRepository");
 
 exports.createClassroom = async (req, res, next) => {
   try {
@@ -603,7 +605,7 @@ exports.updateClassroom = async (req, res, next) => {
       if (!data.subject) {
         return res.status(400).send("Subject is required");
       }
-      subject = await classroomRepository.findSubjectById(data.subject);
+      subject = await subjectRepository.findSubjectById(data.subject);
       if (!subject) {
         return res.status(400).send("Subject does not exist");
       }
@@ -618,13 +620,16 @@ exports.updateClassroom = async (req, res, next) => {
       if (!data.levelID) {
         return res.status(400).send("Level is required");
       }
-      level = await classroomRepository.findLevelById(data.levelID);
+      level = await levelRepository.findLevelById(data.levelID);
       if (!level) {
         return res.status(400).send("Level does not exist");
       }
 
+      const studentIds = data?.students?.map(student => student._id); // Assuming `student` has an `_id` property
+      const studentClassrooms = await classroomRepository.findClassroomsByStudentIds(studentIds);
+
       for (const student of data.students) {
-        const studentClassroom = await classroomRepository.findStudentClassroom(student);
+        const studentClassroom = studentClassrooms?.find(classroom => classroom.studentId.toString() === student._id.toString());
         if (studentClassroom && studentClassroom._id.toString() !== classroomId) {
           return res.status(400).send("Student is already in another classroom");
         }
