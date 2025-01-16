@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Level",
   },
-  guardianId:{
+  guardianId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: false,
@@ -76,7 +76,22 @@ const userSchema = new mongoose.Schema({
   },
   rollNo: {
     type: String,
+    required: function () {
+      return this.userType === "student" && !global.id;
+    },
+    unique: true,
   },
+  referenceNo: {
+    type: String,
+    required: false,
+    unique: true,
+  },
+  gender: {
+    type: String,
+    required: function () {
+      return this.userType === "student"; // Required only for students
+    },
+  }
 });
 
 const User = mongoose.model("User", userSchema);

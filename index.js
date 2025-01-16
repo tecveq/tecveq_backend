@@ -1,6 +1,7 @@
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
+
 var createError = require("http-errors");
 var express = require("express");
 var path = require("path");
@@ -133,6 +134,8 @@ app.get("/dbHealth", async (req, res) => {
     });
   }
 });
+
+
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

@@ -14,6 +14,8 @@ exports.register = async (req, res, next) => {
   try {
     const data = req.body;
 
+    global.id = req?.user ? req.user._id : " ";
+
     // Check if the user already exists
     const foundUser = await User.findOne({ email: data.email });
     if (foundUser) {
@@ -49,6 +51,8 @@ exports.register = async (req, res, next) => {
 
     // Hash password
     data["password"] = bcrypt.hashSync(data.password, 8);
+    console.log(data);
+
 
     // Save user data
     const user = new User(data);
