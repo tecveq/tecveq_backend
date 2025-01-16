@@ -163,8 +163,8 @@ mongoose.connect(
 var port = isProduction ? 443 : 4000;
 const sslOptions = isProduction
   ? {
-    key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
-    cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem"),
+    key: fs.readFileSync("/etc/letsencrypt/live/tcsbe.educativecloud.com/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/tcsbe.educativecloud.com/fullchain.pem"),
   }
   : undefined;
 var server = isProduction
