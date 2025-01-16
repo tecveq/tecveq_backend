@@ -77,4 +77,4 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY_TCS }}
           script: | 
             sudo certbot renew --non-interactive
-            docker restart tca-container
+            sudo docker restart tca-container
