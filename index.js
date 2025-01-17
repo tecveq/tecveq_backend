@@ -46,7 +46,7 @@ app.use(
   cors({
     credentials: true,
     origin: isProduction
-      ? ["https://tca-frontend-sync-git-main-zees-projects-3a466cf5.vercel.app", "*"]  // Production URLs only
+      ? ["https://tca-frontend-sync-git-main-zees-projects-3a466cf5.vercel.app", "https://tcsravi.educativecloud.com", "*"]  // Production URLs only
       : ["http://localhost:5173", "*"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
