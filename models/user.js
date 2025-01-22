@@ -76,9 +76,6 @@ const userSchema = new mongoose.Schema({
   },
   rollNo: {
     type: String,
-    required: function () {
-      return this.userType === "student" && !global.id;
-    },
     unique: true,
   },
   referenceNo: {
@@ -91,7 +88,9 @@ const userSchema = new mongoose.Schema({
     required: function () {
       return this.userType === "student"; // Required only for students
     },
-  }
+  },
+  isFirstLogin: { type: Boolean, default: true }, 
+
 });
 
 const User = mongoose.model("User", userSchema);

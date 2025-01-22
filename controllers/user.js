@@ -10,12 +10,11 @@ const mongoose = require("mongoose");
 const Activity = require("../models/activities");
 const Level = require("../models/level");
 
+const userRepository = require("../repositories/userRepository")
+
 exports.register = async (req, res, next) => {
   try {
     const data = req.body;
-
-    global.id = req?.user ? req.user._id : " ";
-
     // Check if the user already exists
     const foundUser = await User.findOne({ email: data.email });
     if (foundUser) {
@@ -105,11 +104,14 @@ exports.login = async (req, res, next) => {
       const level = await Level.findOne(foundUser.levelId).lean();
       const levelName = level ? level.name : null;
 
+
+
       // Attempt to log in the user
       req.logIn(foundUser, function (err) {
         if (err) {
           return res.status(500).send({ message: "Failed to log in user" });
         }
+
 
         // Send successful response with additional data
         return res.send({
@@ -1600,6 +1602,33 @@ exports.getStudentGradesForSubjectForStudent = async (req, res, next) => {
       attendance: { classes, avgAttendencePer, presentCount, absentCount }
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+
+
+
+exports.updatePassword = async (req, res, next) => {
+  try {
+    const { password } = req.body;
+
+
+    // Hash the password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
+    console.log(req.user._id, "user id in update password controller");
+
+    // Update only the password field in the database
+
+    const user = await userRepository.findUserAndUpdatePasswordById(req.user._id, hashedPassword);
+
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    return res.status(200).send({ message: "Password updated successfully!" });
+  } catch (err) {
+    console.error("Error updating password:", err);
     next(err);
   }
 };
