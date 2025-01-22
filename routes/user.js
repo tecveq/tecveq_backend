@@ -68,4 +68,7 @@ userRouter.get(
   controller.getStudentGradesForSubjectForStudent
 );
 
+userRouter.put("/update-password", controller.updatePassword);
+
+
 module.exports = userRouter;
