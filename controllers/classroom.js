@@ -3,6 +3,9 @@ const Subject = require("../models/subject");
 const Class = require("../models/class");
 const Chatroom = require("../models/chatroom");
 const Level = require("../models/level");
+const classroomRepository = require("../repositories/classroomRepository");
+const levelRepository = require("../repositories/levelRepository");
+const subjectRepository = require("../repositories/subjectRepository");
 
 exports.createClassroom = async (req, res, next) => {
   try {
@@ -128,9 +131,10 @@ exports.createClassroom = async (req, res, next) => {
 exports.getClassrooms = async (req, res, next) => {
   try {
     const classroomsWithClasses = await Classroom.aggregate([
+      // Lookup to populate createdBy details
       {
         $lookup: {
-          from: "users", // Assuming the name of the users collection is "users"
+          from: "users", // Name of the users collection
           localField: "createdBy",
           foreignField: "_id",
           as: "createdBy",
@@ -138,18 +142,39 @@ exports.getClassrooms = async (req, res, next) => {
       },
       {
         $addFields: {
-          createdBy: {
-            $cond: {
-              if: { $isArray: "$createdBy" },
-              then: {
-                $mergeObjects: [
-                  { $arrayElemAt: ["$createdBy", 0] },
-                  { password: undefined }, // Exclude the password field
-                ],
-              },
-              else: null,
-            },
-          },
+          createdBy: { $arrayElemAt: ["$createdBy", 0] }, // Extract single createdBy object
+        },
+      },
+      // Lookup to populate level details
+      {
+        $lookup: {
+          from: "levels", // Name of the levels collection
+          localField: "levelID",
+          foreignField: "_id",
+          as: "level",
+        },
+      },
+      {
+        $addFields: {
+          level: { $arrayElemAt: ["$level", 0] }, // Extract single level object
+        },
+      },
+      // Lookup to populate student details
+      {
+        $lookup: {
+          from: "users", // Name of the users collection
+          localField: "students",
+          foreignField: "_id",
+          as: "students",
+        },
+      },
+      // Lookup to populate teacher details
+      {
+        $lookup: {
+          from: "users", // Name of the users collection
+          localField: "teachers.teacher",
+          foreignField: "_id",
+          as: "teacherDetails",
         },
       },
       {
@@ -160,12 +185,67 @@ exports.getClassrooms = async (req, res, next) => {
           as: "classes",
         },
       },
+      {
+        $lookup: {
+          from: "subjects", // Name of the subjects collection
+          localField: "teachers.subject",
+          foreignField: "_id",
+          as: "subjectDetails",
+        },
+      },
+      // Format teachers array with populated fields
+      {
+        $addFields: {
+          teachers: {
+            $map: {
+              input: "$teachers",
+              as: "teacher",
+              in: {
+                type: "$$teacher.type",
+                teacher: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: "$teacherDetails",
+                        as: "teacherDetail",
+                        cond: { $eq: ["$$teacherDetail._id", "$$teacher.teacher"] },
+                      },
+                    },
+                    0,
+                  ],
+                },
+                subject: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: "$subjectDetails",
+                        as: "subjectDetail",
+                        cond: { $eq: ["$$subjectDetail._id", "$$teacher.subject"] },
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      // Cleanup fields (optional: remove unnecessary arrays)
+      {
+        $project: {
+          teacherDetails: 0,
+          subjectDetails: 0,
+        },
+      },
     ]);
-    res.send(classroomsWithClasses);
+
+    res.status(200).json(classroomsWithClasses);
   } catch (err) {
     next(err);
   }
 };
+
 exports.getClassroomById = async (req, res, next) => {
   try {
     const classroom = await Classroom.findById(req.params.id);
@@ -175,219 +255,219 @@ exports.getClassroomById = async (req, res, next) => {
     next(err);
   }
 };
-exports.updateClassroom = async (req, res, next) => {
-  // try {
-  //   const { name, students, teachers } = req.body;
-  //   // update only if current user is admin or if the classroom was created by the current user
-  //   const currUser = req.user;
-  //   const classroom = await Classroom.findById(req.params.id);
-  //   if (
-  //     (currUser.userType != "admin" && classroom.createdBy != currUser._id) ||
-  //     (currUser.userType == "teacher" && teachers)
-  //   ) {
-  //     return res.status(401).send("Unauthorized");
-  //   }
+// exports.updateClassroom = async (req, res, next) => {
+//   // try {
+//   //   const { name, students, teachers } = req.body;
+//   //   // update only if current user is admin or if the classroom was created by the current user
+//   //   const currUser = req.user;
+//   //   const classroom = await Classroom.findById(req.params.id);
+//   //   if (
+//   //     (currUser.userType != "admin" && classroom.createdBy != currUser._id) ||
+//   //     (currUser.userType == "teacher" && teachers)
+//   //   ) {
+//   //     return res.status(401).send("Unauthorized");
+//   //   }
 
-  //   if (name) {
-  //     // check if same name classroom exists in the same level
-  //     const classroomFound = await Classroom.findOne({
-  //       name: name,
-  //       _id: { $ne: req.params.id },
-  //       levelID: classroom.levelID,
-  //     });
-  //     if (classroomFound) {
-  //       return res.status(400).send("Classroom already exists");
-  //     }
-  //   }
+//   //   if (name) {
+//   //     // check if same name classroom exists in the same level
+//   //     const classroomFound = await Classroom.findOne({
+//   //       name: name,
+//   //       _id: { $ne: req.params.id },
+//   //       levelID: classroom.levelID,
+//   //     });
+//   //     if (classroomFound) {
+//   //       return res.status(400).send("Classroom already exists");
+//   //     }
+//   //   }
 
-  //   classroom.name = name;
+//   //   classroom.name = name;
 
-  //   const chatrooms = await Chatroom.find({ classroomID: req.params.id });
+//   //   const chatrooms = await Chatroom.find({ classroomID: req.params.id });
 
-  //   // check all chatrooms and delete the ones that are not in the new list of teachers
+//   //   // check all chatrooms and delete the ones that are not in the new list of teachers
 
-  //   chatrooms.forEach(async (chatroom) => {
-  //     // find if chatroom has participants that are not in the new list of teachers
-  //     if (
-  //       chatroom.participants.some(
-  //         (participant) =>
-  //           !teachers.some((teacher) => teacher.teacher == participant)
-  //       )
-  //     ) {
-  //       await Chatroom.findByIdAndDelete(chatroom._id);
-  //     }
+//   //   chatrooms.forEach(async (chatroom) => {
+//   //     // find if chatroom has participants that are not in the new list of teachers
+//   //     if (
+//   //       chatroom.participants.some(
+//   //         (participant) =>
+//   //           !teachers.some((teacher) => teacher.teacher == participant)
+//   //       )
+//   //     ) {
+//   //       await Chatroom.findByIdAndDelete(chatroom._id);
+//   //     }
 
-  //     // remove the students that are not in the new list of students
-  //     chatroom.participants = chatroom.participants.filter((participant) =>
-  //       students.includes(participant)
-  //     );
-  //     await chatroom.save();
-  //   });
-  //   await classroom.save();
+//   //     // remove the students that are not in the new list of students
+//   //     chatroom.participants = chatroom.participants.filter((participant) =>
+//   //       students.includes(participant)
+//   //     );
+//   //     await chatroom.save();
+//   //   });
+//   //   await classroom.save();
 
-  //   return res.status(200).send(classroom);
-  // } catch (err) {
-  //   next(err);
-  // }
+//   //   return res.status(200).send(classroom);
+//   // } catch (err) {
+//   //   next(err);
+//   // }
 
-  try {
-    const data = req.body;
+//   try {
+//     const data = req.body;
 
-    if (
-      !data.name ||
-      !data.students ||
-      !data.teachers ||
-      data.students.length < 1 ||
-      data.teachers.length < 1
-    ) {
-      return res.status(400).send("All fields are required");
-    }
+//     if (
+//       !data.name ||
+//       !data.students ||
+//       !data.teachers ||
+//       data.students.length < 1 ||
+//       data.teachers.length < 1
+//     ) {
+//       return res.status(400).send("All fields are required");
+//     }
 
-    const currUser = req.user;
+//     const currUser = req.user;
 
-    const classroom = await Classroom.findById(req.params.id);
+//     const classroom = await Classroom.findById(req.params.id);
 
-    //check if same name classroom exists in the same level
-    const classroomFound = await Classroom.findOne({
-      name: data.name,
-      _id: { $ne: req.params.id },
-      levelID: data.levelID,
-    });
-    if (classroomFound) {
-      return res.status(400).send("Classroom already exists");
-    }
+//     //check if same name classroom exists in the same level
+//     const classroomFound = await Classroom.findOne({
+//       name: data.name,
+//       _id: { $ne: req.params.id },
+//       levelID: data.levelID,
+//     });
+//     if (classroomFound) {
+//       return res.status(400).send("Classroom already exists");
+//     }
 
-    const teachers = data.teachers;
-    const students = data.students;
+//     const teachers = data.teachers;
+//     const students = data.students;
 
-    let subject;
-    let level;
+//     let subject;
+//     let level;
 
-    //check if user is a teacher
-    if (currUser.userType == "teacher") {
-      if (!data.subject) {
-        return res.status(400).send("Subject is required");
-      }
-      //check if subject exists
-      subject = await Subject.findOne({ _id: data.subject });
+//     //check if user is a teacher
+//     if (currUser.userType == "teacher") {
+//       if (!data.subject) {
+//         return res.status(400).send("Subject is required");
+//       }
+//       //check if subject exists
+//       subject = await Subject.findOne({ _id: data.subject });
 
-      if (!subject) {
-        return res.status(400).send("Subject does not exist");
-      }
+//       if (!subject) {
+//         return res.status(400).send("Subject does not exist");
+//       }
 
-      data.teachers = [
-        {
-          teacher: currUser._id,
-          subject: data.subject,
-        },
-      ];
-    } else {
-      if (!data.levelID) {
-        return res.status(400).send("Level is required");
-      }
+//       data.teachers = [
+//         {
+//           teacher: currUser._id,
+//           subject: data.subject,
+//         },
+//       ];
+//     } else {
+//       if (!data.levelID) {
+//         return res.status(400).send("Level is required");
+//       }
 
-      // check if level exists
-      level = await Level.findOne({ _id: data.levelID });
-      if (!level) {
-        return res.status(400).send("Level does not exist");
-      }
+//       // check if level exists
+//       level = await Level.findOne({ _id: data.levelID });
+//       if (!level) {
+//         return res.status(400).send("Level does not exist");
+//       }
 
-      for (let i = 0; i < students.length; i++) {
-        const student = students[i];
-        const classroom = await Classroom.findOne({
-          students: student,
-          _id: { $ne: req.params.id },
-        });
-        if (classroom) {
-          return res
-            .status(400)
-            .send("Student is already in another classroom");
-        }
-      }
-      //check if teacher is already in another classroom
+//       for (let i = 0; i < students.length; i++) {
+//         const student = students[i];
+//         const classroom = await Classroom.findOne({
+//           students: student,
+//           _id: { $ne: req.params.id },
+//         });
+//         if (classroom) {
+//           return res
+//             .status(400)
+//             .send("Student is already in another classroom");
+//         }
+//       }
+//       //check if teacher is already in another classroom
 
-      for (let i = 0; i < teachers.length; i++) {
-        const teacher = teachers[i].teacher;
-        const classroom = await Classroom.findOne({
-          "teachers.teacher": teacher,
-          _id: { $ne: req.params.id },
-        });
-        if (classroom) {
-          return res
-            .status(400)
-            .send("Teacher is already in another classroom");
-        }
-      }
-    }
+//       for (let i = 0; i < teachers.length; i++) {
+//         const teacher = teachers[i].teacher;
+//         const classroom = await Classroom.findOne({
+//           "teachers.teacher": teacher,
+//           _id: { $ne: req.params.id },
+//         });
+//         if (classroom) {
+//           return res
+//             .status(400)
+//             .send("Teacher is already in another classroom");
+//         }
+//       }
+//     }
 
-    // create new chatrooms for teachers which were not in previous classroom
-    await teachers.map(async (tea) => {
-      if (
-        !classroom.teachers.find(
-          (teac) => teac.teacher.toString() == tea.teacher.toString()
-        )
-      ) {
-        const chatname = `${data.name} ${currUser.userType == "teacher"
-          ? " - " + subject.name
-          : (await Subject.findOne({ _id: tea.subject })).name
-          }`;
+//     // create new chatrooms for teachers which were not in previous classroom
+//     await teachers.map(async (tea) => {
+//       if (
+//         !classroom.teachers.find(
+//           (teac) => teac.teacher.toString() == tea.teacher.toString()
+//         )
+//       ) {
+//         const chatname = `${data.name} ${currUser.userType == "teacher"
+//           ? " - " + subject.name
+//           : (await Subject.findOne({ _id: tea.subject })).name
+//           }`;
 
-        await Chatroom.create({
-          participants: [...students, tea.teacher],
-          name: chatname,
-          messages: [],
-          classroomID: classroom._id,
-        });
-      }
-    });
+//         await Chatroom.create({
+//           participants: [...students, tea.teacher],
+//           name: chatname,
+//           messages: [],
+//           classroomID: classroom._id,
+//         });
+//       }
+//     });
 
-    // delete chatrooms which has teacher as participants whihc are not in the new list of teachers
-    const chatrooms = await Chatroom.find({ classroomID: req.params.id });
+//     // delete chatrooms which has teacher as participants whihc are not in the new list of teachers
+//     const chatrooms = await Chatroom.find({ classroomID: req.params.id });
 
-    chatrooms.forEach(async (chatroom) => {
-      // find if chatroom has participants that are not in the new list of teachers
-      if (
-        chatroom.participants.some(
-          (participant) =>
-            !teachers.some((teacher) => teacher.teacher == participant)
-        )
-      ) {
-        await Chatroom.findByIdAndDelete(chatroom._id);
-      }
+//     chatrooms.forEach(async (chatroom) => {
+//       // find if chatroom has participants that are not in the new list of teachers
+//       if (
+//         chatroom.participants.some(
+//           (participant) =>
+//             !teachers.some((teacher) => teacher.teacher == participant)
+//         )
+//       ) {
+//         await Chatroom.findByIdAndDelete(chatroom._id);
+//       }
 
-      // remove the students that are not in the new list of students
-      chatroom.participants = chatroom.participants.filter((participant) =>
-        students.includes(participant)
-      );
-      await chatroom.save();
-    });
+//       // remove the students that are not in the new list of students
+//       chatroom.participants = chatroom.participants.filter((participant) =>
+//         students.includes(participant)
+//       );
+//       await chatroom.save();
+//     });
 
-    classroom.name = data.name;
-    classroom.levelID = data.levelID;
-    classroom.students = data.students;
-    classroom.teachers = data.teachers;
+//     classroom.name = data.name;
+//     classroom.levelID = data.levelID;
+//     classroom.students = data.students;
+//     classroom.teachers = data.teachers;
 
-    await classroom.save();
+//     await classroom.save();
 
-    await teachers.map(async (tea) => {
-      const chatname = `${data.name} ${currUser.userType == "teacher"
-        ? " - " + subject.name
-        : (await Subject.findOne({ _id: tea.subject })).name
-        }`;
+//     await teachers.map(async (tea) => {
+//       const chatname = `${data.name} ${currUser.userType == "teacher"
+//         ? " - " + subject.name
+//         : (await Subject.findOne({ _id: tea.subject })).name
+//         }`;
 
-      await Chatroom.create({
-        participants: [...students, tea.teacher],
-        name: chatname,
-        messages: [],
-        classroomID: classroom._id,
-      });
-    });
+//       await Chatroom.create({
+//         participants: [...students, tea.teacher],
+//         name: chatname,
+//         messages: [],
+//         classroomID: classroom._id,
+//       });
+//     });
 
-    return res.status(201).send(classroom._doc);
-  } catch (err) {
-    next(err);
-  }
-};
+//     return res.status(201).send(classroom._doc);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 exports.deleteClassroom = async (req, res, next) => {
   try {
     // delete only if current user is admin or if the classroom was created by the current user
@@ -492,3 +572,92 @@ exports.getClassroomsOfTeacher = async (req, res, next) => {
   }
 };
 
+
+
+
+// updateClassroom.js
+
+exports.updateClassroom = async (req, res, next) => {
+  try {
+    const data = req.body;
+    const classroomId = req.params.id;
+
+    if (!data.name || !data.students || !data.teachers || data.students.length < 1 || data.teachers.length < 1) {
+      return res.status(400).send("All fields are required");
+    }
+
+    const currUser = req.user;
+    const existingClassroom = await classroomRepository.findClassroomById(classroomId);
+
+    if (!existingClassroom) {
+      return res.status(404).send("Classroom not found");
+    }
+
+    const classroomFound = await classroomRepository.findClassroomByNameAndLevel(data.name, data.levelID);
+    if (classroomFound && classroomFound._id.toString() !== classroomId) {
+      return res.status(400).send("Classroom with the same name already exists in the same level");
+    }
+
+    let subject;
+    let level;
+
+    if (currUser.userType === "teacher") {
+      if (!data.subject) {
+        return res.status(400).send("Subject is required");
+      }
+      subject = await subjectRepository.findSubjectById(data.subject);
+      if (!subject) {
+        return res.status(400).send("Subject does not exist");
+      }
+
+      data.teachers = [
+        {
+          teacher: currUser._id,
+          subject: data.subject,
+        },
+      ];
+    } else {
+      if (!data.levelID) {
+        return res.status(400).send("Level is required");
+      }
+      level = await levelRepository.findLevelById(data.levelID);
+      if (!level) {
+        return res.status(400).send("Level does not exist");
+      }
+
+      const studentIds = data?.students?.map(student => student._id); // Assuming `student` has an `_id` property
+      const studentClassrooms = await classroomRepository.findClassroomsByStudentIds(studentIds);
+
+      for (const student of data.students) {
+        const studentClassroom = studentClassrooms?.find(classroom => classroom.studentId.toString() === student._id.toString());
+        if (studentClassroom && studentClassroom._id.toString() !== classroomId) {
+          return res.status(400).send("Student is already in another classroom");
+        }
+      }
+
+      // for (const teacher of data.teachers) {
+      //   const teacherClassroom = await classroomRepository.findTeacherClassroom(teacher.teacher);
+      //   if (teacherClassroom && teacherClassroom._id.toString() !== classroomId) {
+      //     return res.status(400).send("Teacher is already in another classroom");
+      //   }
+
+      //   if (!teacher.subject) {
+      //     return res.status(400).send("Subject is required for each teacher");
+      //   }
+      // }
+    }
+
+    if (data.headTeacher) {
+      data.teachers = data.teachers.map(teacher => ({
+        ...teacher,
+        type: teacher.teacher === data.headTeacher ? "head" : "teacher",
+      }));
+    }
+
+    const updatedClassroom = await classroomRepository.updateClassroomById(classroomId, data);
+
+    return res.status(200).send(updatedClassroom);
+  } catch (err) {
+    next(err);
+  }
+};

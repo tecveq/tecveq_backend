@@ -1,11 +1,13 @@
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
+
 var createError = require("http-errors");
 var express = require("express");
 var path = require("path");
 var cookieParser = require("cookie-parser");
 var logger = require("morgan");
+// const ZKJUBAER = require("zk-jubaer");
 const session = require("express-session");
 const cors = require("cors");
 const passport = require("passport"); // authentication
@@ -134,10 +136,32 @@ app.get("/dbHealth", async (req, res) => {
   }
 });
 
-// catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  next(createError(404));
-});
+
+// const runMachine = async () => {
+//   let obj = new ZKJUBAER('192.168.80.254', 4370, 5200, 5000); // Using TCP port 4370
+//   try {
+//     // Create socket to machine
+//     await obj.createSocket();
+
+//     // Get all logs in the machine
+//     const logs = await obj.getAttendances();
+//     console.log(logs);
+
+//     // Read real-time logs
+//     await obj.getRealTimeLogs((data) => {
+//       console.log(data);
+//     });
+
+//     // Disconnect from device
+//     await obj.disconnect();
+//   } catch (e) {
+//     console.log(e);
+//   }
+// };
+
+// runMachine();
+
+
 // error handler
 app.use(function (err, req, res, next) {
   // set locals, only providing error in development
@@ -148,6 +172,10 @@ app.use(function (err, req, res, next) {
   res.status(err.status || 500);
   res.send(err);
 });
+
+
+
+
 const db = process.env.MONGO_CONNECTION;
 mongoose.connect(
   db,
