@@ -138,18 +138,18 @@ app.get("/dbHealth", async (req, res) => {
 
 
 // const runMachine = async () => {
-//   let obj = new ZKJUBAER('192.168.80.254', 4370, 5200, 5000); // Using TCP port 4370
+//   let obj = new ZKJUBAER('192.168.80.100', 4370, 5000); // Using TCP port 4370
 //   try {
 //     // Create socket to machine
 //     await obj.createSocket();
 
 //     // Get all logs in the machine
 //     const logs = await obj.getAttendances();
-//     console.log(logs);
+//     console.log(logs ,"get all data of this device");
 
 //     // Read real-time logs
 //     await obj.getRealTimeLogs((data) => {
-//       console.log(data);
+//       console.log(data,"real time logs");
 //     });
 
 //     // Disconnect from device
@@ -163,6 +163,7 @@ app.get("/dbHealth", async (req, res) => {
 
 
 // error handler
+
 app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
