@@ -39,6 +39,10 @@ exports.getStudentReportForParent = async (req, res, next) => {
       submissions: { $elemMatch: { studentID, marks: { $exists: true } } },
     });
 
+    console.log(quizes, "quizes data ");
+    console.log(assignments, "assignment data ");
+
+
     const classes = await Class.find({
       classroomID,
       subjectID
@@ -138,6 +142,15 @@ exports.getStudentReportForParent = async (req, res, next) => {
         return {
           totalMarks: ass.totalMarks,
           title: ass.title,
+          dueDate: ass.dueDate,
+          files: ass.files, // Include files
+          submissions: ass.submissions.map((sub) => ({
+            studentID: sub.studentID,
+            feedback: sub.feedback,
+            file: sub.file,
+            submittedAt: sub.submittedAt,
+            isLate: sub.isLate,
+          })), // Include submissions data
           marksObtained: ass.submissions.find(
             (sub) => sub.studentID.toString() == studentID
           ).marks,
@@ -147,6 +160,15 @@ exports.getStudentReportForParent = async (req, res, next) => {
         return {
           totalMarks: ass.totalMarks,
           title: ass.title,
+          dueDate: ass.dueDate,
+          files: ass.files,
+          submissions: ass.submissions.map((sub) => ({
+            studentID: sub.studentID,
+            feedback: sub.feedback,
+            file: sub.file,
+            submittedAt: sub.submittedAt,
+            isLate: sub.isLate,
+          })),
           marksObtained: ass.submissions.find(
             (sub) => sub.studentID.toString() == studentID
           ).marks,
@@ -372,12 +394,12 @@ exports.getStudentLastDeliveredAssignmentReport = async (req, res, next) => {
         grade = avgAssMarksPer > 90
           ? "A"
           : avgAssMarksPer > 80
-          ? "B"
-          : avgAssMarksPer > 70
-          ? "C"
-          : avgAssMarksPer > 60
-          ? "D"
-          : "F";
+            ? "B"
+            : avgAssMarksPer > 70
+              ? "C"
+              : avgAssMarksPer > 60
+                ? "D"
+                : "F";
       }
     }
 
