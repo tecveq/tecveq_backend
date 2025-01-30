@@ -38,6 +38,11 @@ const authRouter = require("./routes/auth");
 const settingsRouter = require("./routes/settingsRouter")
 const Level = require("./models/level");
 const User = require("./models/user");
+
+const multer = require('multer');
+const csv = require('csv-parser');
+
+const upload = multer({ dest: 'uploads/' });
 var app = express();
 let isProduction = process.env.NODE_ENV == "production";
 app.use(logger("dev"));
@@ -135,6 +140,69 @@ app.get("/dbHealth", async (req, res) => {
     });
   }
 });
+
+
+
+
+app.post('/api/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No file uploaded.');
+  }
+
+  const results = [];
+
+  fs.createReadStream(req.file.path)
+    .pipe(csv())
+    .on('data', (data) => results.push(data))
+    .on('end', async () => {
+      try {
+        for (const row of results) {
+          const { ['Roll No']: RollNo, ['Card Number']: CardNumber, Name, Email, Gender, Father, LevelName } = row;
+
+          if (!Email || !RollNo) {
+            console.warn(`Skipping row due to missing Email or RollNo:`, row);
+            continue; // Skip if email or roll number is missing
+          }
+
+          let level = await Level.findOne({ name: LevelName });
+
+          if (!level) {
+            level = new Level({ name: LevelName || "Unknown" });
+            await level.save();
+          }
+
+          const levelID = level._id;
+
+          // Check if user already exists
+          const userExists = await User.findOne({ $or: [{ email: Email }, { rollNo: RollNo }] });
+
+          if (!userExists) {
+            // Create a new user with required fields
+            const newUser = new User({
+              name: Name || "Unknown",
+              email: Email,
+              rollNo: RollNo,
+              levelID: levelID,
+              userType: 'student',
+              gender: Gender || "Not specified",
+              guardianName: Father || "Not specified",
+              password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO", // Dummy password
+              referenceNo: CardNumber || "Not Defined", // Unique reference
+            });
+
+            console.log("Saving user:", newUser);
+            await newUser.save();
+          }
+        }
+
+        res.send('CSV file processed and users added to the database.');
+      } catch (error) {
+        console.error("Error processing CSV:", error);
+        res.status(500).send('Error processing CSV file.');
+      }
+    });
+});
+
 
 
 // const runMachine = async () => {
