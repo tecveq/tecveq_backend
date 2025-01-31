@@ -1,0 +1,6 @@
+Roll No,Card Number,Name,Gender,Class,Section,Email,FatherName,Classroom,LevelName,GuardianEmail,GuardianPhone
+1,CN1003,Farhan Ali,Male,10th,B,student4@school.com,Mr. Ali,Business,A1,guardian4@school.com,03001234567
+2,CN1004,Zainab Fatima,Female,9th,A,student5@school.com,Mr. Fatima,Science,A2,guardian5@school.com,03012345678
+3,CN1005,Ahmed Khan,Male,11th,C,student6@school.com,Mr. Khan,Commerce,A3,guardian6@school.com,03023456789
+4,CN1006,Ayesha Noor,Female,8th,B,student7@school.com,Mr. Noor,Arts,A1,guardian7@school.com,03034567890
+5,CN1007,Usman Raza,Male,12th,A,student8@school.com,Mr. Raza,Humanities,A2,guardian8@school.com,03045678901
