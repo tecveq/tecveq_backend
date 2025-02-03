@@ -89,6 +89,8 @@ exports.addCSVFile = async (req, res, next) => {
         return res.status(400).send('No file uploaded.');
     }
 
+    const currUser = req.user;
+
     const results = [];
 
     fs.createReadStream(req.file.path)
@@ -119,6 +121,7 @@ exports.addCSVFile = async (req, res, next) => {
                             levelID: level._id,
                             students: [],
                             teachers: [],
+                            createdBy: currUser?._id
                         });
                         await classroom.save();
                     }
