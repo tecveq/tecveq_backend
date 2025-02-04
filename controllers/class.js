@@ -801,10 +801,16 @@ exports.submitAttendence = async (req, res, next) => {
       return;
     }
 
-    const enableHeadAttendance = settings.attendenceSetting.enableHeadAttendance;
+    const classroom = await Classroom.findById(classroomID);
 
+    if (!classroom) {
+      return res.status(404).json({ message: "Classroom not found" });
+    }
 
-    if (enableHeadAttendance) {
+    // Check if there is a teacher with type "head"
+    const isHeadTeacher = classroom.teachers.some(item => item.type === "head");
+
+    if (isHeadTeacher) {
       const todayStart = new Date(startTime).setHours(0, 0, 0, 0); // Start of the day (00:00:00)
       const todayEnd = new Date(startTime).setHours(23, 59, 59, 999); // End of the day (23:59:59)
 
@@ -838,38 +844,31 @@ exports.submitAttendence = async (req, res, next) => {
 
         const admins = await User.findOne({ userType: "admin" });
 
-
-
         // Fetch students and their guardians
-
         const students = await User.find({
           _id: { $in: discrepancyStudents },
         });
 
-        //  Create a map of student names and extract guardian IDs
-
+        // Create a map of student roll numbers and extract guardian IDs
         const studentMap = students.reduce((map, student) => {
-          map[student._id.toString()] = student.name;
+          map[student._id.toString()] = { name: student.name, rollNo: student.rollNo || "N/A" };
           return map;
         }, {});
 
         // Extract guardian IDs from the student records
-
         const guardianIds = students
           .filter(student => student.guardianId) // Ensure the student has a guardianId
           .map(student => student.guardianId.toString());
 
-        //  Combine admin ID with unique guardian IDs
-
+        // Combine admin ID with unique guardian IDs
         const deliveredTo = [admins?._id, ...new Set(guardianIds)]; // Use `Set` to avoid duplicate IDs
 
-        //  Generate notifications using the lookup map
-
+        // Generate notifications using the lookup map
         const notifications = discrepancyStudents.map(studentID => {
-          const studentName = studentMap[studentID] || "Unknown Student";
+          const studentInfo = studentMap[studentID] || { name: "Unknown Student", rollNo: "N/A" };
           return {
-            userID: req.user._id, // Admin's User ID
-            message: ` Student ${studentName} (Id: ${studentID}) is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present earlier in the head attendance.`,
+            userID: studentID, // Admin's User ID
+            message: `Student ${studentInfo.name} (Roll No: ${studentInfo.rollNo}) is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present earlier in the head attendance.`,
             url: `/students/${studentID}`, // URL to the student's page
             deliveredTo: deliveredTo, // Deliver to admin and guardians
           };
@@ -878,8 +877,8 @@ exports.submitAttendence = async (req, res, next) => {
         // Send notifications
         await Notification.insertMany(notifications);
       }
-
     }
+
     // Fetch today's start date (ensure it is in UTC)
 
 
