@@ -16,6 +16,9 @@ const determineCSVType = (headers) => {
     if (headers.includes("classroom_name") && headers.includes("level_name")) {
         return "classroom";
     }
+    if (headers.includes("Subject Name") && headers.includes("Level Name")) {
+        return "subject";
+    }
     return null;
 };
 
@@ -47,6 +50,8 @@ exports.addCSVFile = async (req, res, next) => {
                     await processTeacherCSV(results);
                 } else if (fileType === "classroom") {
                     await processClassroomCSV(results, req.user);
+                } else if (fileType === "subject") {
+                    await processSubjectCSV(results);
                 }
 
                 res.send("CSV file processed successfully.");
@@ -62,6 +67,53 @@ exports.addCSVFile = async (req, res, next) => {
     });
 };
 
+// Function to process Subject CSV
+
+
+const processSubjectCSV = async (results) => {
+    for (const row of results) {
+        const {
+            ["Subject Name"]: Subject_Name,
+            ["Level Name"]: Level_Name,
+
+        } = row;
+
+        if (!Subject_Name || !Level_Name) {
+            console.warn("Skipping row due to missing required fields:", row);
+            continue;
+        }
+
+        let level = await Level.findOne({ name: Level_Name });
+
+
+        if (level) {
+            console.warn("Skipping row as Level, Student, and Parent already exist:", row);
+            continue;
+        }
+
+        if (!level) {
+            level = new Level({ name: Level_Name });
+            await level.save();
+        }
+
+        const levelID = level._id;
+
+        const subject = new Subject({
+            name: Subject_Name,
+            levelID: levelID,
+        });
+
+        if (!subject) {
+            const newSubjectWithLevel = new Subject({
+                name: Subject_Name,
+                levelID: levelID,
+
+            });
+
+            await newSubjectWithLevel.save();
+        }
+    }
+};
 // Function to process Student CSV
 const processStudentCSV = async (results) => {
     for (const row of results) {
