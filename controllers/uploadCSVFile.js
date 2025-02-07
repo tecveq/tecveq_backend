@@ -4,6 +4,7 @@ const User = require("../models/user");
 const Level = require("../models/level");
 const Classroom = require("../models/classroom");
 const Subject = require("../models/subject");
+const mongoose = require("mongoose");
 
 // Function to determine CSV type
 const determineCSVType = (headers) => {
@@ -86,10 +87,7 @@ const processSubjectCSV = async (results) => {
         let level = await Level.findOne({ name: Level_Name });
 
 
-        if (level) {
-            console.warn("Skipping row as Level, Student, and Parent already exist:", row);
-            continue;
-        }
+     
 
         if (!level) {
             level = new Level({ name: Level_Name });
@@ -98,12 +96,14 @@ const processSubjectCSV = async (results) => {
 
         const levelID = level._id;
 
-        const subject = new Subject({
+        const subject = await Subject.findOne({
             name: Subject_Name,
             levelID: levelID,
         });
 
         if (!subject) {
+            console.log("heloo subject hehehehe");
+
             const newSubjectWithLevel = new Subject({
                 name: Subject_Name,
                 levelID: levelID,
@@ -125,7 +125,7 @@ const processStudentCSV = async (results) => {
             ["Student Email"]: Email,
             Gender,
             ["Guardian Name"]: FatherName,
-            LevelName,
+            ["Level Name"]: LevelName,
             ["Guardian Email"]: GuardianEmail,
             ["Guardian Phone"]: GuardianPhone,
         } = row;
@@ -164,7 +164,7 @@ const processStudentCSV = async (results) => {
                 guardianName: FatherName,
                 guardianPhoneNumber: GuardianPhone || "000000",
                 password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO", // Dummy password
-                referenceNo: CardNumber || "Not Defined",
+                referenceNo: CardNumber || "000000",
             });
 
             await newUser.save();
@@ -215,11 +215,12 @@ const processTeacherCSV = async (results) => {
 };
 
 // Function to process Classroom CSV
+
 const processClassroomCSV = async (results, currUser) => {
     for (const row of results) {
         const { classroom_name, level_name, student_email, teacher_email, subject_name, type } = row;
 
-        if (!classroom_name || !level_name || !student_email || !teacher_email || !subject_name || !type) {
+        if (!classroom_name || !level_name || !student_email) {
             console.warn("Skipping row due to missing required fields:", row);
             continue;
         }
@@ -258,48 +259,65 @@ const processClassroomCSV = async (results, currUser) => {
             classroom.students.push(student._id);
         }
 
-        let teacher = await User.findOne({ email: teacher_email, userType: "teacher" });
-        if (!teacher) {
-            teacher = new User({
-                name: teacher_email.split("@")[0],
-                email: teacher_email,
-                gender: "Not specified",
-                userType: "teacher",
-                password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO",
-            });
-            await teacher.save();
-        }
+        // If teacher, subject, and type exist, process them
+        if (teacher_email && subject_name && type) {
 
-        // ✅ Check if the subject already exists
-        let subject = await Subject.findOne({ name: subject_name, levelID: level._id });
-        if (!subject) {
-            try {
-                subject = new Subject({ name: subject_name, levelID: level._id });
-                await subject.save();
-            } catch (error) {
-                if (error.code === 11000) {
-                    console.warn(`Skipping duplicate subject: ${subject_name}`);
-                    continue; // Skip the duplicate entry
-                } else {
-                    throw error; // Re-throw unexpected errors
+            console.log("i am inside functions");
+
+            let teacher = await User.findOne({ email: teacher_email, userType: "teacher" });
+            if (!teacher) {
+                teacher = new User({
+                    name: teacher_email.split("@")[0],
+                    email: teacher_email,
+                    gender: "Not specified",
+                    userType: "teacher",
+                    password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO",
+                });
+                await teacher.save();
+            }
+
+            let subject = await Subject.findOne({ name: subject_name, levelID: level._id });
+            if (!subject) {
+                try {
+                    subject = new Subject({ name: subject_name, levelID: level._id });
+                    await subject.save();
+                } catch (error) {
+                    if (error.code === 11000) {
+                        console.warn(`Skipping duplicate subject: ${subject_name}`);
+                        continue;
+                    } else {
+                        throw error;
+                    }
                 }
             }
-        } else {
-            console.warn(`Skipping existing subject: ${subject_name}`);
-        }
 
-        // ✅ Prevent duplicate teacher-subject assignments
-        const teacherExistsInClassroom = classroom.teachers.some(
-            (t) => t.teacher.equals(teacher._id) && t.subject.equals(subject._id) && t.type === type
-        );
+            // Ensure teacher-subject assignment is stored properly
+            const teacherExistsInClassroom = classroom.teachers.some(
+                (t) =>
+                    t.teacher.toString() === teacher._id.toString() &&
+                    t.subject.toString() === subject._id.toString() &&
+                    t.type === type
+            );
 
-        if (!teacherExistsInClassroom) {
-            classroom.teachers.push({ teacher: teacher._id, subject: subject._id, type });
-        } else {
-            console.warn(`Skipping duplicate teacher assignment: ${teacher_email} - ${subject_name}`);
+            if (!teacherExistsInClassroom) {
+                classroom.teachers.push({
+                    teacher: new mongoose.Types.ObjectId(teacher._id),
+                    subject: new mongoose.Types.ObjectId(subject._id),
+                    type: type,
+                });
+
+                console.log(
+                    `Added Teacher: ${teacher.email}, Subject: ${subject.name}, Type: ${type} to Classroom: ${classroom.name}`
+                );
+            } else {
+                console.warn(`Skipping duplicate teacher assignment: ${teacher_email} - ${subject_name}`);
+            }
         }
 
         await classroom.save();
     }
 };
+
+
+
 
