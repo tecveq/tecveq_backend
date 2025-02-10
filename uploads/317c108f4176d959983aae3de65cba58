@@ -1,0 +1,5 @@
+Student Name,Roll Number,Card Number,Student Phone,Gender,LevelName,Student Email,Guardian Name,Guardian Email,Guardian Phone
+John Doe,101,ABC123,9876543210,Male,A1,johndoe@example.com,Michael Doe,guardian@example.com,1234567890
+Jane Smith,102,XYZ456,8765432109,Female,O1,janesmith@example.com,Sarah Smith,guardian2@example.com,0987654321
+Ali Khan,103,LMN789,7654321098,Male,B1,alikhan@example.com,Ahmad Khan,guardian3@example.com,1122334455
+Emily Davis,104,PQR321,6543210987,Female,A1,emilydavis@example.com,Laura Davis,guardian4@example.com,2233445566

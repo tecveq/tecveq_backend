@@ -1,0 +1,8 @@
+classroom_name,level_name,student_email,teacher_email,subject_name,type
+Class A,Grade 1,student1@example.com,teacher1@example.com,Math A,head
+Class A,Grade 1,student2@example.com,teacher2@example.com,Science,teacher
+Class A,Grade 1,student3@example.com,teacher3@example.com,English,teacher
+Class B,Grade 2,student4@example.com,teacher4@example.com,Physics B,head
+Class B,Grade 2,student5@example.com,teacher5@example.com,Chemistry,teacher
+Class B,Grade 2,student6@example.com,teacher6@example.com,Biology,teacher
+Class C,Grade 3,student10@example.com,teacher10@example.com,Chemistry,teacher
