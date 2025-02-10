@@ -54,7 +54,10 @@ exports.createAssignment = async (req, res, next) => {
 };
 
 exports.editAssignment = async (req, res, next) => {
-  const { title, totalMarks, dueDate, files } = req.body;
+
+  console.log("i am working inside controller");
+
+  const { title, totalMarks, dueDate, files, subjectID, classroomID } = req.body;
   const { id } = req.params;
   try {
     // check if dueDate is greater than current date
@@ -77,12 +80,14 @@ exports.editAssignment = async (req, res, next) => {
 
     //if title or totalMarks or dueDate or files is not provided, use the old value
     assignment.title = title ? title : assignment.title;
+    assignment.subjectID = subjectID ? subjectID : assignment.subjectID;
+    assignment.classroomID = classroomID ? classroomID : assignment.classroomID;
     assignment.totalMarks = totalMarks ? totalMarks : assignment.totalMarks;
     assignment.dueDate = dueDate ? dueDate : assignment.dueDate;
     assignment.files = files ? files : assignment.files;
 
     await assignment.save();
-    res.send(assignment);
+    res.status(200).send(assignment);
   } catch (error) {
     next(error);
   }
@@ -132,7 +137,7 @@ exports.getAssignmentsOfClassroomOfTeacher = async (req, res, next) => {
 exports.getAllAssignmentsOfTeacher = async (req, res, next) => {
   const createdBy = req.user._id;
   try {
-    const assignments = await Assignment.find({ createdBy }).populate({path: "classroomID", model: "Classroom"});
+    const assignments = await Assignment.find({ createdBy }).populate({ path: "classroomID", model: "Classroom" });
     res.send(assignments);
   } catch (error) {
     next(error);
@@ -194,55 +199,58 @@ exports.submitAssignment = async (req, res, next) => {
     next(error);
   }
 };
-
 exports.gradeAssignments = async (req, res, next) => {
-  //grade multiple assignments
   const { id } = req.params;
   const { submissions } = req.body;
+
   try {
+    // Find the assignment by ID
     const assignment = await Assignment.findById(id);
+
     if (!assignment) {
-      return res.status(404).send();
+      return res.status(404).send("Assignment not found");
     }
 
-    //check if submissions has marks greater than total marks
-    const invalidMarks = submissions.find(
-      (s) => s.marks > assignment.totalMarks
-    );
-    if (invalidMarks) {
-      return res.status(400).send("Invalid marks");
-    }
-
-    // check if teacher who created assignment is grading it
+    // Check if the teacher grading the assignment is the one who created it
     if (assignment.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).send();
+      return res.status(403).send("Unauthorized to grade this assignment");
     }
 
-    // // find submission in assignment and update only marks, feedback and grade
-    // const updatedSubmissions = assignment.submissions.map((submission) => {
-    //   const newSubmission = submissions.find(
-    //     (s) => s.studentID.toString() == submission.studentID.toString()
-    //   );
+    // Validate marks: Ensure no submission exceeds total marks
+    const invalidMarks = submissions.find((s) => s.marks > assignment.totalMarks);
+    if (invalidMarks) {
+      return res.status(400).send("Invalid marks: Marks exceed total marks");
+    }
 
-    //   if (newSubmission) {
-    //     submission.marks = newSubmission.marks;
-    //     submission.feedback = newSubmission.feedback
-    //       ? newSubmission.feedback
-    //       : "";
-    //     submission.grade = "A";
-    //   }
-    //   return submission;
-    // });
+    // Update submissions
+    assignment.submissions = assignment.submissions.map((existingSubmission) => {
+      // Find the matching submission from the request payload
+      const updatedSubmission = submissions.find(
+        (s) => s.studentID.toString() === existingSubmission.studentID.toString()
+      );
 
-    // assignment.submissions = updatedSubmissions;
+      // If there's an update for this student, merge it with the existing data
+      if (updatedSubmission) {
+        return {
+          ...existingSubmission.toObject(), // Keep existing fields (e.g., file, submittedAt)
+          feedback: updatedSubmission.feedback || existingSubmission.feedback,
+          grade: updatedSubmission.grade || existingSubmission.grade,
+          marks: updatedSubmission.marks || existingSubmission.marks,
+        };
+      }
 
-    assignment.submissions = submissions;
+      // If no update, return the existing submission as-is
+      return existingSubmission;
+    });
+
+    // Save the updated assignment
     await assignment.save();
     res.send(assignment);
   } catch (error) {
     next(error);
   }
 };
+
 
 exports.getStudentAssignment = async (req, res, next) => {
   try {
