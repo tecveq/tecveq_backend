@@ -236,7 +236,7 @@ exports.getQuizesOfClassroomOfTeacher = async (req, res, next) => {
 exports.getAllQuizesOfTeacher = async (req, res, next) => {
   const createdBy = req.user._id;
   try {
-    const quizes = await Quiz.find({ createdBy });
+    const quizes = await Quiz.find({ createdBy }).populate({ path: "classroomID", model: "Classroom" });
     res.send(quizes);
   } catch (error) {
     next(error);

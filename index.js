@@ -38,6 +38,9 @@ const authRouter = require("./routes/auth");
 const settingsRouter = require("./routes/settingsRouter")
 const Level = require("./models/level");
 const User = require("./models/user");
+
+
+
 var app = express();
 let isProduction = process.env.NODE_ENV == "production";
 app.use(logger("dev"));
@@ -98,6 +101,8 @@ app.use("/api/settings/", checkLoggedIn, settingsRouter);
 app.use("/api/notification/", checkLoggedIn, notificationRouter);
 app.use("/api/announcement/", checkLoggedIn, announcementRouter);
 app.use("/api/parent", require("./routes/parent"));
+app.use("/api/upload/", require("./routes/uploadCSVFile"));
+
 app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
 app.get("/", (req, res) => {
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
@@ -135,6 +140,8 @@ app.get("/dbHealth", async (req, res) => {
     });
   }
 });
+
+
 
 
 // const runMachine = async () => {
