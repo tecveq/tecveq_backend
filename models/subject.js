@@ -4,7 +4,6 @@ const subjectSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    unique: true,
   },
   levelID: {
     type: mongoose.Schema.Types.ObjectId,
@@ -12,6 +11,7 @@ const subjectSchema = new mongoose.Schema({
   },
 });
 
+subjectSchema.index({ name: 1, levelID: 1 }, { unique: true });
 const Subject = mongoose.model("Subject", subjectSchema);
 
 module.exports = Subject;

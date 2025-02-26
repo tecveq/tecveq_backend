@@ -338,6 +338,7 @@ const processClassroomCSV = async (results, currUser) => {
                         email: student_email,
                         userType: "student",
                         gender: "Not specified",
+                        levelID: level._id,
                         password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO",
                         rollNo: student_email.split("@")[0],
                         phoneNumber: "000000",
