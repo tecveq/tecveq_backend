@@ -12,7 +12,7 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
       - name: Login to Docker Hub
-        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+        run: docker login -u ${{ vars.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
       - name: Build Docker Image
         run: docker build --no-cache -t timetechnologiesllc/tca_prod .
       - name: Publish this image to docker hub
@@ -30,7 +30,7 @@ jobs:
       - name: SSH into EC2 and run Certbot
         uses: appleboy/ssh-action@v1.0.3
         with: 
-          host: ${{ secrets.EC2_IP_TCS }}
+          host: ${{ vars.EC2_IP_TCS_SHALIMAR }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY_TCS }}
           script: |
@@ -51,13 +51,13 @@ jobs:
             KEY_PATH="/etc/letsencrypt/live/tcsshalimarbe.educativecloud.com/privkey.pem"
 
           
-            sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            sudo docker login -u ${{ vars.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
             sudo docker rm -f tca-container
             sudo docker system prune -a -f
             sudo docker pull timetechnologiesllc/tca_prod:latest
             
-            sudo docker run -d -p 8080:80 -p 8443:443 --name tca-container -v $CERT_PATH:/etc/letsencrypt/live/tcsshalimarbe.educativecloud.com/fullchain.pem -v $KEY_PATH:/etc/letsencrypt/live/tcsshalimarbe.educativecloud.com/privkey.pem  -e MONGO_CONNECTION='${{ secrets.MONGO_URI_TCS }}' -e NODE_ENV='production' -e PORT='${{ secrets.PORT }}' -e CLIENT_BASE_URL='${{secrets.CLIENT_BASE_URL}}' timetechnologiesllc/tca_prod
+            sudo docker run -d -p 8080:80 -p 8443:443 --name tca-container -v $CERT_PATH:/etc/letsencrypt/live/tcsshalimarbe.educativecloud.com/fullchain.pem -v $KEY_PATH:/etc/letsencrypt/live/tcsshalimarbe.educativecloud.com/privkey.pem  -e MONGO_CONNECTION='${{ secrets.MONGO_URI_TCS_SHALIMAR }}' -e NODE_ENV='production' -e PORT='${{ vars.PORT }}' -e CLIENT_BASE_URL='${{secrets.CLIENT_BASE_URL}}' timetechnologiesllc/tca_prod
 
  
   renew_ssl:
@@ -72,7 +72,7 @@ jobs:
       - name: SSH into EC2 and renew SSL
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_IP_TCS }}
+          host: ${{ vars.EC2_IP_TCS_SHALIMAR }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY_TCS }}
           script: | 
