@@ -5,7 +5,6 @@ on:
     branches:
       - release/tcs
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,12 +37,12 @@ jobs:
             whoami
             sudo apt-get update
             sudo apt-get install -y software-properties-common
-            sudo apt-get-repository universe
-            sudo apt-get-repository ppa:certbot/certbot
+            sudo add-apt-repository universe
+            sudo add-apt-repository ppa:certbot/certbot
             sudo apt-get update
             sudo apt-get install -y certbot
 
-            sudo systemctl stop nginix || true
+            sudo systemctl stop nginx || true
             sudo systemctl stop apache2 || true
 
             sudo certbot certonly --standalone --non-interactive --agree-tos --email timetechnologiesllc@gmail.com -d 	tcsbe.educativecloud.com
@@ -52,13 +51,13 @@ jobs:
             KEY_PATH="/etc/letsencrypt/live/tcsbe.educativecloud.com/privkey.pem"
 
           
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
-            docker rm -f tca-container
-            docker system prune -a -f
-            docker pull timetechnologiesllc/tca_prod:latest
+            sudo docker rm -f tca-container
+            sudo docker system prune -a -f
+            sudo docker pull timetechnologiesllc/tca_prod:latest
             
-            docker run -d -p 80:80 -p 443:443 --name tca-container -v $CERT_PATH:/etc/letsencrypt/live/tcsbe.educativecloud.com/fullchain.pem -v $KEY_PATH:/etc/letsencrypt/live/tcsbe.educativecloud.com/privkey.pem  -e MONGO_CONNECTION='${{ secrets.MONGO_URI_TCS }}' -e NODE_ENV='production' -e PORT='${{ secrets.PORT }}' -e CLIENT_BASE_URL='${{secrets.CLIENT_BASE_URL_TCS}}' timetechnologiesllc/tca_prod
+            sudo docker run -d -p 8080:80 -p 8443:443 --name tca-container -v $CERT_PATH:/etc/letsencrypt/live/tcsbe.educativecloud.com/fullchain.pem -v $KEY_PATH:/etc/letsencrypt/live/tcsbe.educativecloud.com/privkey.pem  -e MONGO_CONNECTION='${{ secrets.MONGO_URI_TCS }}' -e NODE_ENV='production' -e PORT='${{ secrets.PORT }}' -e CLIENT_BASE_URL='${{secrets.CLIENT_BASE_URL}}' timetechnologiesllc/tca_prod
 
  
   renew_ssl:
@@ -78,4 +77,4 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY_TCS }}
           script: | 
             sudo certbot renew --non-interactive
-            docker restart tca-container
+            sudo docker restart tca-container
