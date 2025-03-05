@@ -15,14 +15,14 @@ exports.createAnnouncement = async (req, res, next) => {
 };
 exports.getAnnouncementsByType = async (req, res, next) => {
   try {
-    const announcements = await Announcement.find({ type: req.params.type });
+    const announcements = await Announcement.find({ type: req.params.type })
 
     return res.status(200).send(announcements);
   } catch (err) { }
 };
 exports.getAnnouncements = async (req, res, next) => {
   try {
-    const announcements = await Announcement.find();
+    const announcements = await Announcement.find()
 
     return res.status(200).send(announcements);
   } catch (err) {
@@ -61,12 +61,12 @@ exports.getAnnouncementsByUserType = async (req, res, next) => {
     // Get the userType of the logged-in user
     const userId = req.user._id;  // Assuming you have userId from the session or JWT token
 
-    console.log(userId ,"current user");
-    
+    console.log(userId, "current user");
+
     const user = await User.findById(userId);
 
-    console.log(user ,"all user data");
-    
+    console.log(user, "all user data");
+
 
     if (!user) {
       return res.status(404).send({ message: "User not found" });
@@ -89,7 +89,7 @@ exports.getAnnouncementsByUserType = async (req, res, next) => {
         { visibility: 'all' }, // Visible to everyone
         { visibility: visibilityFilter }, // Visible based on the user's type
       ],
-    });
+    }).sort({ createdAt: -1 });
 
     return res.status(200).send(announcements);
 

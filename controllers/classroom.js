@@ -473,9 +473,9 @@ exports.deleteClassroom = async (req, res, next) => {
     // delete only if current user is admin or if the classroom was created by the current user
     const currUser = req.user;
     const classroom = await Classroom.findById(req.params.id);
-    if (currUser.userType != "admin" && classroom.createdBy != currUser._id) {
-      return res.status(401).send("Unauthorized");
-    }
+    // if (currUser.userType != "admin" && classroom.createdBy != currUser._id) {
+    //   return res.status(401).send("Unauthorized");
+    // }
     // delete all classes in the classroom
     await Class.deleteMany({ classroomID: req.params.id });
     // delete the classroom

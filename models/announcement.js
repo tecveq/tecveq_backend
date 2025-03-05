@@ -23,7 +23,9 @@ const announcementSchema = new mongoose.Schema({
     required: true,
     enum: ["parent", "teacher", "student", "all"],
   },
-});
+},
+  { timestamps: true }
+);
 
 const Announcement = mongoose.model("Announcement", announcementSchema);
 
