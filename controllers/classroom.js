@@ -470,24 +470,44 @@ exports.getClassroomById = async (req, res, next) => {
 // };
 exports.deleteClassroom = async (req, res, next) => {
   try {
-    // delete only if current user is admin or if the classroom was created by the current user
     const currUser = req.user;
+
+    // Fetch the classroom
     const classroom = await Classroom.findById(req.params.id);
-    if (currUser.userType != "admin" && classroom.createdBy != currUser._id) {
+
+    if (!classroom) {
+      return res.status(404).send({ message: "Classroom not found" });
+    }
+
+    // Convert ObjectId to string for proper comparison
+    const createdBy = String(classroom.createdBy);
+    const currUserId = String(currUser._id);
+
+    // Authorization check
+    if (currUser.userType !== "admin" && createdBy !== currUserId) {
       return res.status(401).send("Unauthorized");
     }
-    // delete all classes in the classroom
+
+    // If an admin created the classroom, only admin can delete it
+    if (createdBy !== currUserId && currUser.userType !== "admin") {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Delete all classes in the classroom
     await Class.deleteMany({ classroomID: req.params.id });
-    // delete the classroom
+
+    // Delete the classroom
     await Classroom.findByIdAndDelete(req.params.id);
-    // delete the chatroom
+
+    // Delete the chatroom
     await Chatroom.deleteMany({ classroomID: req.params.id });
 
-    return res.status(204).send();
+    return res.status(204).send({ message: "Classroom deleted successfully" });
   } catch (err) {
     next(err);
   }
 };
+
 exports.getClassroomsOfTeacher = async (req, res, next) => {
   try {
     const teacherID = req.user._id;

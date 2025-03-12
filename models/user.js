@@ -76,11 +76,14 @@ const userSchema = new mongoose.Schema({
   rollNo: {
     type: String,
     unique: true,
+    sparse: true,
+
   },
   referenceNo: {
     type: String,
     required: false,
     unique: true,
+    sparse: true,
   },
   gender: {
     type: String,
@@ -88,7 +91,7 @@ const userSchema = new mongoose.Schema({
       return this.userType === "student"; // Required only for students
     },
   },
-  isFirstLogin: { type: Boolean, default: true }, 
+  isFirstLogin: { type: Boolean, default: true },
 
 });
 
