@@ -325,7 +325,6 @@ const processTeacherCSV = async (results) => {
             if (teacherExists) {
                 const errorMsg = `Skipping row as teacher already exists: ${JSON.stringify(row)}`;
                 console.warn(errorMsg);
-                errors.push(errorMsg);
                 continue;
             }
 
@@ -367,8 +366,8 @@ const validateClassroomData = async (results) => {
         let { classroom_name, level_name, student_email, teacher_email, subject_name, type } = row;
 
         // Check for missing required fields
-        if (!classroom_name || !level_name || !student_email || !teacher_email || !subject_name || !type) {
-            let errorMessage = `Row ${i + 1}: Missing required fields - `;
+        if (!classroom_name || !level_name || !student_email) {
+            let errorMessage = `Row ${i + 2}: Missing required fields - `;
 
             if (!classroom_name) {
                 errorMessage += "classroom_name, ";
@@ -379,21 +378,25 @@ const validateClassroomData = async (results) => {
             if (!student_email) {
                 errorMessage += "student_email, ";
             }
-            if (!teacher_email) {
-                errorMessage += "teacher_email, ";
-            }
-            if (!subject_name) {
-                errorMessage += "subject_name, ";
-            }
-            if (!type) {
-                errorMessage += "type, ";
-            }
-
+            
             // Remove the last comma and space
             errorMessage = errorMessage.trim().replace(/,$/, "");
 
             return [errorMessage];
         }
+
+        if (!teacher_email) {
+            console.warn(`⚠️ Row ${i + 2}: Teacher Email Missing `,)
+        }
+        if (!subject_name) {
+            console.warn(`⚠️ Row ${i + 2}: Subject Name Missing  - `,)
+
+        }
+        if (!type) {
+            console.warn(`⚠️ Row ${i + 2}: Type Name Missing  - `,)
+
+        }
+
 
 
         const levelName = level_name.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -415,17 +418,21 @@ const validateClassroomData = async (results) => {
             }
 
             // Validate teacher
-            const teacher = await User.findOne({ email: teacher_email, userType: "teacher" });
-            if (!teacher) {
-                return [`Row ${i + 1}: Teacher with email '${teacher_email}' does not exist.`];
+            if (teacher_email) {
+                const teacher = await User.findOne({ email: teacher_email, userType: "teacher" });
+                if (!teacher) {
+                    return [`Row ${i + 1}: Teacher with email '${teacher_email}' does not exist.`];
+                }
             }
 
             // Validate subject
-            const subject = await Subject.findOne({ name: subjectName, levelID: level._id });
-            if (!subject) {
-                return [
-                    `Row ${i + 1}: Subject '${subjectName}' does not exist for Level '${levelName}'.`
-                ];
+            if (subjectName && level) {
+                const subject = await Subject.findOne({ name: subjectName, levelID: level._id });
+                if (!subject) {
+                    return [
+                        `Row ${i + 1}: Subject '${subjectName}' does not exist for Level '${levelName}'.`
+                    ];
+                }
             }
         } catch (error) {
             console.error(`❌ Error validating row ${i + 1}:`, error);
@@ -455,7 +462,6 @@ const processClassroomCSV = async (results, currUser) => {
             try {
                 level = await Level.findOne({ name: levelName });
 
-                console.log(level, "level name");
 
                 if (!level) {
                     console.error(`❌ Error: Level '${levelName}' does not exist.`);
@@ -528,13 +534,7 @@ const processClassroomCSV = async (results, currUser) => {
                 try {
                     subject = await Subject.findOne({ name: subjectName, levelID: level._id });
 
-                    console.log(subject, "subject found");
-
-                    // if (!subject) {
-                    //     console.error(`Error: Subject '${subjectName}' does not exist for Level '${levelName}'.`);
-                    //     errors.push(`Row ${i}: Subject '${subjectName}' not found for level '${levelName}'.`);
-                    //     continue;
-                    // }
+            
                 } catch (error) {
                     if (error.code === 11000) {
                         console.warn(`❌ Skipping duplicate subject: ${subject_name}`);
@@ -543,8 +543,6 @@ const processClassroomCSV = async (results, currUser) => {
                     }
                     continue;
                 }
-
-                console.log(teacher, "teacher present");
 
                 const teacherExistsInClassroom = classroom.teachers.some(
                     (t) =>
