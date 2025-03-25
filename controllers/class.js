@@ -794,12 +794,12 @@ exports.submitAttendence = async (req, res, next) => {
     await Class.findByIdAndUpdate(id, { attendance: data }, { new: true });
 
 
-    const settings = await Setting.findOne()
+    // const settings = await Setting.findOne()
 
-    if (!settings) {
-      console.log("No settings found.");
-      return;
-    }
+    // if (!settings) {
+    //   console.log("No settings found.");
+    //   return;
+    // }
 
     const classroom = await Classroom.findById(classroomID);
 

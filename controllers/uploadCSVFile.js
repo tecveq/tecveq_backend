@@ -45,14 +45,35 @@ exports.addCSVFile = async (req, res, next) => {
             }
 
             try {
+                let processResult;
                 if (fileType === "student") {
-                    await processStudentCSV(results);
+
+                    const validationErrors = await validateStudentData(results); // Call the pre-validation function
+                    if (validationErrors.length > 0) {
+                        return res.status(400).json({
+                            success: false,
+                            errors: validationErrors
+                        });
+                    }
+                    processResult = await processStudentCSV(results);
                 } else if (fileType === "teacher") {
-                    await processTeacherCSV(results);
+                    processResult = await processTeacherCSV(results);
                 } else if (fileType === "classroom") {
-                    await processClassroomCSV(results, req.user);
+
+                    const validationErrors = await validateClassroomData(results); // Call the pre-validation function
+                    if (validationErrors.length > 0) {
+                        return res.status(400).json({
+                            success: false,
+                            errors: validationErrors
+                        });
+                    }
+                    processResult = await processClassroomCSV(results, req.user);
                 } else if (fileType === "subject") {
-                    await processSubjectCSV(results);
+                    processResult = await processSubjectCSV(results);
+                }
+
+                if (processResult && processResult.success === false) {
+                    return res.status(400).json({ success: false, errors: processResult.errors });
                 }
 
                 res.send("CSV file processed successfully.");
@@ -72,64 +93,129 @@ exports.addCSVFile = async (req, res, next) => {
 
 
 const processSubjectCSV = async (results) => {
+    let errors = []; // Array to collect error messages
+
     try {
         for (const row of results) {
             try {
-                let { ["Subject Name"]: Subject_Name, ["Level Name"]: Level_Name } = row;
+                let { ["Subject Name"]: subjectName, ["Level Name"]: levelName } = row;
 
-                // ✅ Step 1: Validate and Normalize Input Data
-                if (!Subject_Name || !Level_Name) {
-                    console.warn("Skipping row due to missing required fields:", row);
+                // Validate required fields
+                if (!subjectName || !levelName) {
+                    const errMsg = `Skipping row due to missing required fields: ${JSON.stringify(row)}`;
+                    console.warn(errMsg);
+                    errors.push(errMsg);
                     continue;
                 }
 
-                // Normalize the names (trim to avoid extra spaces)
-                Subject_Name = Subject_Name.trim();
-                Level_Name = Level_Name.trim();
+                // Normalize input data
+                subjectName = subjectName.trim().replace(/\s+/g, ' ').toLowerCase();; // Remove extra spaces between words
+                levelName = levelName.trim().replace(/\s+/g, ' ').toLowerCase(); // Remove extra spaces & convert to lowercase
 
-                console.log(`Processing Subject: ${Subject_Name} for Level: ${Level_Name}`);
 
-                // ✅ Step 2: Check if Level Exists
-                let level = await Level.findOne({ name: Level_Name });
+
+                console.log(`Processing Subject: ${subjectName} for Level: ${levelName}`);
+
+                // Check if Level exists or create it
+                let level = await Level.findOne({ name: levelName });
                 if (!level) {
-                    console.log(`Creating new level: ${Level_Name}`);
-                    level = new Level({ name: Level_Name });
+                    console.log(`Creating new level: ${levelName}`);
+                    level = new Level({ name: levelName });
                     await level.save();
-                    console.log(`Level created successfully: ${Level_Name}`);
+                    console.log(`Level created successfully: ${levelName}`);
                 }
                 const levelID = level._id;
 
-                // ✅ Step 3: Check if the combination of Subject and Level already exists.
-                const existingSubject = await Subject.findOne({ name: Subject_Name, levelID: levelID });
+                // Check if the combination of Subject and Level already exists
+                const existingSubject = await Subject.findOne({ name: subjectName, levelID: levelID });
                 if (existingSubject) {
-                    console.warn(`Skipping: Subject '${Subject_Name}' already exists in level '${Level_Name}'.`);
+                    const errMsg = `Skipping: Subject '${subjectName}' already exists in level '${levelName}'.`;
+                    console.warn(errMsg);
                     continue;
                 }
 
-                console.log(`Adding new subject: ${Subject_Name} under level: ${Level_Name}`);
+                console.log(`Adding new subject: ${subjectName} under level: ${levelName}`);
 
-                // ✅ Step 4: Insert New Subject
+                // Insert new subject
                 const newSubject = new Subject({
-                    name: Subject_Name,
+                    name: subjectName,
                     levelID: levelID,
                 });
                 await newSubject.save();
-                console.log(`✅ Subject added: ${Subject_Name} for Level: ${Level_Name}`);
+                console.log(`✅ Subject added: ${subjectName} for Level: ${levelName}`);
             } catch (error) {
-                console.error("❌ Error processing row:", row, error);
+                const errMsg = `Error processing row ${JSON.stringify(row)}: ${error.message}`;
+                console.error(errMsg);
+                errors.push(errMsg);
                 continue;
             }
         }
     } catch (error) {
-        console.error("❌ Fatal error processing CSV:", error);
+        const errMsg = `Fatal error processing CSV: ${error.message}`;
+        console.error(errMsg);
+        errors.push(errMsg);
     }
+
+    return errors.length > 0
+        ? { success: false, errors }
+        : { success: true, message: "Subject CSV processed successfully" };
 };
 
+
+const validateStudentData = async (results) => {
+    for (let i = 0; i < results.length; i++) {
+        const row = results[i];
+
+        let {
+            ["Roll Number"]: RollNo,
+            ["Student Name"]: Name,
+            Gender,
+            ["Guardian Name"]: FatherName,
+            ["Level Name"]: LevelName,
+        } = row;
+
+        // Validate required fields and return immediately on first missing field
+        if (!RollNo || RollNo.trim() === "") {
+            return [`Row ${i + 2}: Roll Number is missing`];
+        }
+        if (!Name) {
+            return [`Row ${i + 2}: Student Name is missing`];
+        }
+        if (!LevelName) {
+            return [`Row ${i + 2}: Level Name is missing`];
+        }
+        if (!FatherName) {
+            return [`Row ${i + 2}: Guardian Name is missing`];
+        }
+        if (!Gender) {
+            return [`Row ${i + 2}: Gender is missing`];
+        }
+        // Normalize level name
+        const levelName = LevelName.replace(/\s+/g, ' ').trim().toLowerCase();
+
+        try {
+            // Validate level
+            const level = await Level.findOne({ name: levelName });
+            if (!level) {
+                return [`Row ${i + 2}: Level '${levelName}' does not exist.`];
+            }
+        } catch (error) {
+            console.error(`❌ Error validating row ${i + 2}:`, error);
+            return [`Row ${i + 2}: Error during validation.`];
+        }
+    }
+
+    return []; // Return empty array if no errors
+};
 
 
 // Function to process Student CSV
 const processStudentCSV = async (results) => {
+    let errors = []; // Array to collect errors
+    let i = 1;
+
     for (const row of results) {
+        i++;
         try {
             const {
                 ["Roll Number"]: RollNo,
@@ -144,27 +230,11 @@ const processStudentCSV = async (results) => {
                 ["Guardian Phone"]: GuardianPhone,
             } = row;
 
-            // 1. Validate RollNo
-            if (!RollNo || RollNo.trim() === "") {
-                console.warn("Skipping row due to missing Roll Number:", row);
-                continue;
-            }
-
-            // Convert RollNo to string
             const rollNumberString = RollNo.trim();
+            let levelNames = LevelName.split(",").map(name => name.trim().replace(/\s+/g, ' ').toLowerCase());
 
-            // 2. Validate other required fields
-            if (!Name || !LevelName || !FatherName) {
-                console.warn("Skipping row due to missing required fields:", row);
-                continue;
-            }
-
-            // 3. Check or create Level
-            let level = await Level.findOne({ name: LevelName });
-            if (!level) {
-                level = new Level({ name: LevelName });
-                await level.save();
-            }
+            // Fetch Level
+            let level = await Level.findOne({ name: levelNames });
             const levelID = level._id;
 
             // Default email values if empty
@@ -172,13 +242,10 @@ const processStudentCSV = async (results) => {
             const guardianEmail = GuardianEmail && GuardianEmail.trim() !== "" ? GuardianEmail : `${rollNumberString}.guardian@educativecloud.com`;
             const generatedReferenceNo = CardNumber || `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-            // 4. Upsert the Student (userType: "student")
+            // Upsert Student
             await User.findOneAndUpdate(
                 {
-                    $or: [
-                        { email: studentEmail },
-                        { rollNo: rollNumberString }
-                    ]
+                    $or: [{ email: studentEmail }, { rollNo: rollNumberString }]
                 },
                 {
                     name: Name,
@@ -201,7 +268,7 @@ const processStudentCSV = async (results) => {
                 }
             );
 
-            // 5. Upsert the Parent (userType: "parent")
+            // Upsert Parent
             await User.findOneAndUpdate(
                 { email: guardianEmail, userType: "parent" },
                 {
@@ -212,7 +279,6 @@ const processStudentCSV = async (results) => {
                     password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO",
                     rollNo: `${rollNumberString}-Parent`,
                     referenceNo: `${generatedReferenceNo}786`,
-
                 },
                 {
                     upsert: true,
@@ -222,16 +288,19 @@ const processStudentCSV = async (results) => {
             );
         } catch (error) {
             console.error("Error processing row:", row, error);
-            continue; // Continue processing the next row
+            errors.push(`Error processing row: ${JSON.stringify(row)}, Error: ${error.message}`);
+            continue;
         }
     }
+
+    return errors.length > 0 ? { success: false, errors } : { success: true, message: "CSV processed successfully" };
 };
-
-
 
 
 // Function to process Teacher CSV
 const processTeacherCSV = async (results) => {
+    let errors = []; // Array to collect errors
+
     for (const row of results) {
         try {
             const {
@@ -243,7 +312,9 @@ const processTeacherCSV = async (results) => {
 
             // Ensure required fields are present
             if (!Email || !Name) {
-                console.warn(" ❌ Skipping row due to missing required fields:", row);
+                const errorMsg = `Skipping row due to missing required fields: ${JSON.stringify(row)}`;
+                console.warn(errorMsg);
+                errors.push(errorMsg);
                 continue;
             }
 
@@ -251,14 +322,13 @@ const processTeacherCSV = async (results) => {
 
             // Check if the teacher already exists
             const teacherExists = await User.findOne({ email: Email });
-
             if (teacherExists) {
-                console.warn("❌ Skipping row as teacher already exists:", row);
+                const errorMsg = `Skipping row as teacher already exists: ${JSON.stringify(row)}`;
+                console.warn(errorMsg);
                 continue;
             }
 
             const generatedRollNo = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-
 
             // Create and save new teacher
             const newTeacher = new User({
@@ -276,36 +346,131 @@ const processTeacherCSV = async (results) => {
             console.log(`Teacher added successfully: ${Name}`);
 
         } catch (error) {
-            console.error(" ❌ Error processing teacher CSV row:", row, error);
+            const errorMsg = `Error processing teacher CSV row: ${JSON.stringify(row)}, Error: ${error.message}`;
+            console.error(errorMsg);
+            errors.push(errorMsg);
             continue;
         }
     }
+
+    return errors.length > 0
+        ? { success: false, errors }
+        : { success: true, message: "Teacher CSV processed successfully" };
 };
 
 
-// Function to process Classroom CSV
 
-const processClassroomCSV = async (results, currUser) => {
-    for (const row of results) {
+const validateClassroomData = async (results) => {
+    for (let i = 0; i < results.length; i++) {
+        const row = results[i];
+        let { classroom_name, level_name, student_email, teacher_email, subject_name, type } = row;
+
+        // Check for missing required fields
+        if (!classroom_name || !level_name || !student_email) {
+            let errorMessage = `Row ${i + 2}: Missing required fields - `;
+
+            if (!classroom_name) {
+                errorMessage += "classroom_name, ";
+            }
+            if (!level_name) {
+                errorMessage += "level_name, ";
+            }
+            if (!student_email) {
+                errorMessage += "student_email, ";
+            }
+            
+            // Remove the last comma and space
+            errorMessage = errorMessage.trim().replace(/,$/, "");
+
+            return [errorMessage];
+        }
+
+        if (!teacher_email) {
+            console.warn(`⚠️ Row ${i + 2}: Teacher Email Missing `,)
+        }
+        if (!subject_name) {
+            console.warn(`⚠️ Row ${i + 2}: Subject Name Missing  - `,)
+
+        }
+        if (!type) {
+            console.warn(`⚠️ Row ${i + 2}: Type Name Missing  - `,)
+
+        }
+
+
+
+        const levelName = level_name.replace(/\s+/g, ' ').trim().toLowerCase();
+        const subjectName = subject_name.replace(/\s+/g, ' ').trim().toLowerCase();
+
         try {
-            const { classroom_name, level_name, student_email, teacher_email, subject_name, type } = row;
-
-            if (!classroom_name || !level_name) {
-                console.warn("❌ Skipping row due to missing required fields:", row);
-                continue;
+            // Validate level
+            const level = await Level.findOne({ name: levelName });
+            if (!level) {
+                return [`Row ${i + 1}: Level '${levelName}' does not exist.`];
             }
 
+            student_email = `${student_email}@educativecloud.com`;
+
+            // Validate student
+            const student = await User.findOne({ email: student_email, userType: "student" });
+            if (!student) {
+                return [`Row ${i + 1}: Student with email '${student_email}' does not exist.`];
+            }
+
+            // Validate teacher
+            if (teacher_email) {
+                const teacher = await User.findOne({ email: teacher_email, userType: "teacher" });
+                if (!teacher) {
+                    return [`Row ${i + 1}: Teacher with email '${teacher_email}' does not exist.`];
+                }
+            }
+
+            // Validate subject
+            if (subjectName && level) {
+                const subject = await Subject.findOne({ name: subjectName, levelID: level._id });
+                if (!subject) {
+                    return [
+                        `Row ${i + 1}: Subject '${subjectName}' does not exist for Level '${levelName}'.`
+                    ];
+                }
+            }
+        } catch (error) {
+            console.error(`❌ Error validating row ${i + 1}:`, error);
+            return [`Row ${i + 1}: Error during validation.`];
+        }
+    }
+
+    return []; // Return an empty array if no errors
+};
+
+
+
+const processClassroomCSV = async (results, currUser) => {
+    let errors = [];
+    let i = 1;
+    for (const row of results) {
+        try {
+            let { classroom_name, level_name, student_email, teacher_email, subject_name, type } = row;
+
+
             let level;
+
+
+            let levelName = level_name.replace(/\s+/g, ' ').trim().toLowerCase();
+            let subjectName = subject_name.replace(/\s+/g, ' ').trim().toLowerCase();
+
             try {
-                level = await Level.findOne({ name: level_name });
+                level = await Level.findOne({ name: levelName });
+
+
                 if (!level) {
-                    level = new Level({ name: level_name });
-                    await level.save();
-                    console.log(`✅ Created new level: ${level_name}`);
+                    console.error(`❌ Error: Level '${levelName}' does not exist.`);
+                    errors.push(`Row ${i}: Level '${levelName}' not found.`);
+                    return false;
                 }
             } catch (error) {
                 console.error(`❌ Error finding/saving level (${level_name}):`, error);
-                continue;
+                return false;
             }
 
             let classroom;
@@ -327,28 +492,14 @@ const processClassroomCSV = async (results, currUser) => {
                 continue;
             }
 
-            const generatedReferenceNo = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-
+            student_email = `${student_email}@educativecloud.com`;
             let student;
             try {
                 student = await User.findOne({ email: student_email, userType: "student" });
                 if (!student) {
-                    student = new User({
-                        name: `${student_email.split("@")[0]} student`,
-                        email: student_email,
-                        userType: "student",
-                        gender: "Not specified",
-                        levelID: level._id,
-                        password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO",
-                        rollNo: student_email.split("@")[0],
-                        phoneNumber: "000000",
-                        referenceNo: generatedReferenceNo,
-                        guardianName: `${student_email.split("@")[0]} guardian`,
-                        guardianEmail: student_email.split("@")[0] + ".guardian@educativecloud.com",
-                        guardianPhoneNumber: "000000",
-                    });
-                    await student.save();
-                    console.log(`✅ Created new student: ${student_email}`);
+                    console.error(`❌ Error: Student with email '${student_email}' does not exist.`);
+                    errors.push(`Row ${i}: Student '${student_email}' not found.`);
+                    continue;
                 }
             } catch (error) {
                 console.error(`❌ Error finding/saving student (${student_email}):`, error);
@@ -363,25 +514,15 @@ const processClassroomCSV = async (results, currUser) => {
                 console.log(`ℹ️ Processing teacher-subject assignment for: ${teacher_email} - ${subject_name}`);
 
                 let teacher;
-                const teacherReferenceNo = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-                const teacherRollNo = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
 
 
                 try {
                     teacher = await User.findOne({ email: teacher_email, userType: "teacher" });
                     if (!teacher) {
-                        teacher = new User({
-                            name: teacher_email.split("@")[0],
-                            email: teacher_email,
-                            gender: "Not specified",
-                            userType: "teacher",
-                            referenceNo: teacherReferenceNo,
-                            password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO",
-                            rollNo: teacherRollNo,
-                            phoneNumber: "000000",
-                        });
-                        await teacher.save();
-                        console.log(`✅ Created new teacher: ${teacher_email}`);
+                        console.error(`Error: Teacher with email '${teacher_email}' does not exist.`);
+                        errors.push(`Row ${i}: Teacher '${teacher_email}' not found.`);
+                        continue;
                     }
                 } catch (error) {
                     console.error(`❌ Error finding/saving teacher (${teacher_email}):`, error);
@@ -389,13 +530,11 @@ const processClassroomCSV = async (results, currUser) => {
                 }
 
                 let subject;
+
                 try {
-                    subject = await Subject.findOne({ name: subject_name, levelID: level._id });
-                    if (!subject) {
-                        subject = new Subject({ name: subject_name, levelID: level._id });
-                        await subject.save();
-                        console.log(`✅ Created new subject: ${subject_name}`);
-                    }
+                    subject = await Subject.findOne({ name: subjectName, levelID: level._id });
+
+            
                 } catch (error) {
                     if (error.code === 11000) {
                         console.warn(`❌ Skipping duplicate subject: ${subject_name}`);
@@ -433,6 +572,8 @@ const processClassroomCSV = async (results, currUser) => {
             console.error("❌ Fatal error processing row:", error);
         }
     }
+    return errors.length > 0 ? { success: false, errors } : { success: true, message: "Classroom CSV processed successfully" };
+
 };
 
 
