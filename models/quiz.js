@@ -5,6 +5,9 @@ const quizSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  text: {
+    type: String,
+  },
   totalMarks: {
     type: Number,
     required: true,
