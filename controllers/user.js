@@ -901,6 +901,9 @@ exports.getTeachersForAdmin = async (req, res, next) => {
       .populate("teachers.subject")
       .populate("teachers.teacher");
 
+    console.log(classrooms, "classroom data is hahhahaha");
+
+
     const classes = await Class.find({});
 
     // teachers.forEach((teach) => {
@@ -1016,6 +1019,7 @@ exports.getTeachersForAdmin = async (req, res, next) => {
           },
           subject: teacher.subject,
           teacher: teacher.teacher,
+          classroomName: classroom.name
         });
       });
       return result;

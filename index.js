@@ -187,7 +187,7 @@ app.use(function (err, req, res, next) {
 const db = process.env.MONGO_CONNECTION;
 mongoose.connect(
   db,
-  { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true },
+  { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true ,tlsAllowInvalidCertificates: true},
   (err) => {
     if (err) {
       console.log(err);

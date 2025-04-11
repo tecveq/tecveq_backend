@@ -4,6 +4,7 @@ const Quiz = require("../models/quiz");
 exports.createQuiz = async (req, res, next) => {
   const {
     title,
+    text,
     totalMarks,
     dueDate,
     files,
@@ -46,6 +47,7 @@ exports.createQuiz = async (req, res, next) => {
 
     const quiz = new Quiz({
       title,
+      text,
       totalMarks,
       dueDate,
       files,
@@ -62,7 +64,7 @@ exports.createQuiz = async (req, res, next) => {
 };
 
 exports.editQuiz = async (req, res, next) => {
-  const { title, totalMarks, dueDate, files, canSubmitAfterTime } = req.body;
+  const { title, text, totalMarks, dueDate, files, canSubmitAfterTime } = req.body;
   const { id } = req.params;
   try {
     if (dueDate)
@@ -83,6 +85,7 @@ exports.editQuiz = async (req, res, next) => {
     }
 
     quiz.title = title ? title : quiz.title;
+    quiz.text = text ? text : quiz.text;
     quiz.totalMarks = totalMarks ? totalMarks : quiz.totalMarks;
     quiz.dueDate = dueDate ? dueDate : quiz.dueDate;
     quiz.files = files ? files : quiz.files;
@@ -235,13 +238,47 @@ exports.getQuizesOfClassroomOfTeacher = async (req, res, next) => {
 
 exports.getAllQuizesOfTeacher = async (req, res, next) => {
   const createdBy = req.user._id;
+
   try {
-    const quizes = await Quiz.find({ createdBy }).populate({ path: "classroomID", model: "Classroom" });
+    const quizes = await Quiz.find({ createdBy })
+      .populate({
+        path: "createdBy",
+        select: "name email", // Teacher info
+        model: "User",
+      })
+      .populate({
+        path: "subjectID",
+        select: "name", // Subject name
+        model: "Subject",
+      })
+      .populate({
+        path: "classroomID",
+        model: "Classroom",
+        populate: [
+          {
+            path: "students",
+            select: "name email",
+            model: "User",
+          },
+          {
+            path: "teachers.teacher",
+            select: "name email",
+            model: "User",
+          },
+          {
+            path: "teachers.subject",
+            select: "name",
+            model: "Subject",
+          },
+        ],
+      });
+
     res.send(quizes);
   } catch (error) {
     next(error);
   }
 };
+
 
 exports.getQuizById = async (req, res, next) => {
   const { id } = req.params;
