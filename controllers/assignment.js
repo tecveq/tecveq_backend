@@ -2,7 +2,7 @@ const Assignment = require("../models/assignment");
 const Classroom = require("../models/classroom");
 
 exports.createAssignment = async (req, res, next) => {
-  const { title, totalMarks, dueDate, files, classroomID, subjectID } =
+  const { title, text, totalMarks, dueDate, files, classroomID, subjectID } =
     req.body;
   try {
     //check if classroom exists and teacher is part of that classroom
@@ -39,6 +39,7 @@ exports.createAssignment = async (req, res, next) => {
     const createdBy = req.user._id;
     const assignment = new Assignment({
       title,
+      text,
       totalMarks,
       dueDate,
       files,
@@ -57,7 +58,7 @@ exports.editAssignment = async (req, res, next) => {
 
   console.log("i am working inside controller");
 
-  const { title, totalMarks, dueDate, files, subjectID, classroomID } = req.body;
+  const { title, text, totalMarks, dueDate, files, subjectID, classroomID } = req.body;
   const { id } = req.params;
   try {
     // check if dueDate is greater than current date
@@ -80,6 +81,7 @@ exports.editAssignment = async (req, res, next) => {
 
     //if title or totalMarks or dueDate or files is not provided, use the old value
     assignment.title = title ? title : assignment.title;
+    assignment.text = text ? text : assignment.text;
     assignment.subjectID = subjectID ? subjectID : assignment.subjectID;
     assignment.classroomID = classroomID ? classroomID : assignment.classroomID;
     assignment.totalMarks = totalMarks ? totalMarks : assignment.totalMarks;
@@ -137,12 +139,45 @@ exports.getAssignmentsOfClassroomOfTeacher = async (req, res, next) => {
 exports.getAllAssignmentsOfTeacher = async (req, res, next) => {
   const createdBy = req.user._id;
   try {
-    const assignments = await Assignment.find({ createdBy }).populate({ path: "classroomID", model: "Classroom" });
+    const assignments = await Assignment.find({ createdBy })
+      .populate({
+        path: "createdBy",
+        select: "name email", // Teacher info
+        model: "User",
+      })
+      .populate({
+        path: "subjectID",
+        select: "name", // Subject name
+        model: "Subject",
+      })
+      .populate({
+        path: "classroomID",
+        model: "Classroom",
+        populate: [
+          {
+            path: "students",
+            select: "name email",
+            model: "User",
+          },
+          {
+            path: "teachers.teacher",
+            select: "name email",
+            model: "User",
+          },
+          {
+            path: "teachers.subject",
+            select: "name",
+            model: "Subject",
+          }
+        ],
+      });
+
     res.send(assignments);
   } catch (error) {
     next(error);
   }
 };
+
 
 exports.getAssignmentById = async (req, res, next) => {
   const { id } = req.params;

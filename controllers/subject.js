@@ -95,18 +95,20 @@ exports.getTeacherSubjects = async (req, res, next) => {
       });
     }
 
-    // Collect all subjects associated with the teacher in each classroom
+    // Collect unique subjects associated with the teacher
     const subjects = [];
+    const addedSubjectIds = new Set(); // to track unique subject IDs
 
     for (const classroom of classrooms) {
       const teacherData = classroom.teachers.find(
         (teacher) => teacher.teacher.toString() === teacherId
       );
 
-      if (teacherData && teacherData.subject) {
+      if (teacherData && teacherData.subject && !addedSubjectIds.has(teacherData.subject.toString())) {
         const subject = await Subject.findById(teacherData.subject);
         if (subject) {
           subjects.push({ name: subject.name, classroomId: classroom._id, _id: subject._id });
+          addedSubjectIds.add(teacherData.subject.toString()); // mark this subject as added
         }
       }
     }
@@ -117,11 +119,10 @@ exports.getTeacherSubjects = async (req, res, next) => {
       });
     }
 
-    return res.status(200).json(
-      subjects
-    );
+    return res.status(200).json(subjects);
   } catch (err) {
     next(err);
   }
 };
+
 
