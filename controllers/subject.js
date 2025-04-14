@@ -84,10 +84,9 @@ exports.getTeacherSubjects = async (req, res, next) => {
 
     console.log("Fetching subjects for teacher:", teacherId);
 
-    // Find all classrooms where the teacherId exists in the teachers array
     const classrooms = await Classroom.find({
       "teachers.teacher": teacherId,
-    });
+    }).populate("levelID");
 
     if (!classrooms || classrooms.length === 0) {
       return res.status(404).json({
@@ -95,20 +94,25 @@ exports.getTeacherSubjects = async (req, res, next) => {
       });
     }
 
-    // Collect unique subjects associated with the teacher
     const subjects = [];
-    const addedSubjectIds = new Set(); // to track unique subject IDs
+    const addedSubjectIds = new Set();
 
     for (const classroom of classrooms) {
-      const teacherData = classroom.teachers.find(
+      const teacherEntries = classroom.teachers.filter(
         (teacher) => teacher.teacher.toString() === teacherId
       );
 
-      if (teacherData && teacherData.subject && !addedSubjectIds.has(teacherData.subject.toString())) {
-        const subject = await Subject.findById(teacherData.subject);
-        if (subject) {
-          subjects.push({ name: subject.name, classroomId: classroom._id, _id: subject._id });
-          addedSubjectIds.add(teacherData.subject.toString()); // mark this subject as added
+      for (const entry of teacherEntries) {
+        if (entry.subject && !addedSubjectIds.has(entry.subject.toString())) {
+          const subject = await Subject.findById(entry.subject);
+          if (subject) {
+            subjects.push({
+              name: `${classroom.levelID?.name || " "} - ${subject.name}`,
+              classroomId: classroom._id,
+              _id: subject._id,
+            });
+            addedSubjectIds.add(entry.subject.toString());
+          }
         }
       }
     }
@@ -124,5 +128,6 @@ exports.getTeacherSubjects = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
