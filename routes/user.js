@@ -47,7 +47,7 @@ userRouter.get(
 
 // get subjects of student for admin
 userRouter.get("/student-subjects/:studentID", controller.getStudentSubjects);
-userRouter.get("/student-subjects-with-level/:levelID", controller.getStudentSubjectsWithLevel);
+userRouter.get("/student-subjects-with-level/:levelID", controller.getSubjectsWithLevel);
 // get assignments and quizes of student of a subject for admin
 userRouter.get(
   "/student-assignments-quizes/:studentID/:subjectID",
