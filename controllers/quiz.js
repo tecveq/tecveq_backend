@@ -35,15 +35,15 @@ exports.createQuiz = async (req, res, next) => {
     }
 
     // check if teacher is assigned that subject in that classroom
-    const isSubjectTeacher = classroom.teachers.find(
-      (tea) =>
-        tea.teacher.toString() == req.user._id.toString() &&
-        tea.subject.toString() == subjectID
-    );
+    // const isSubjectTeacher = classroom.teachers.find(
+    //   (tea) =>
+    //     tea.teacher.toString() == req.user._id.toString() &&
+    //     tea.subject.toString() == subjectID
+    // );
 
-    if (!isSubjectTeacher) {
-      return res.status(403).send();
-    }
+    // if (!isSubjectTeacher) {
+    //   return res.status(403).send();
+    // }
 
     const quiz = new Quiz({
       title,

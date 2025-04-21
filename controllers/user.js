@@ -10,7 +10,8 @@ const mongoose = require("mongoose");
 const Activity = require("../models/activities");
 const Level = require("../models/level");
 
-const userRepository = require("../repositories/userRepository")
+const userRepository = require("../repositories/userRepository");
+const Subject = require("../models/subject");
 
 exports.register = async (req, res, next) => {
   try {
@@ -161,6 +162,30 @@ exports.updateUser = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+
+
+exports.updateStudentSubject = async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+
+
+
+    const user = await User.findByIdAndUpdate(
+      studentId,
+      { subjects: req.body }, // directly use the array
+      { new: true }
+    );
+
+    return res.status(200).send(user);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 
 exports.getUsersNotInClassroom = async (req, res, next) => {
   // console.log(req.user);
@@ -894,6 +919,42 @@ exports.getStudentSubjects = async (req, res, next) => {
   }
 };
 
+
+
+
+
+
+exports.getStudentSubjectsWithLevel = async (req, res, next) => {
+  try {
+    const { levelID } = req.params;
+
+
+    // Fetch level name using levelID
+    const level = await Level.findById(levelID);
+    if (!level) {
+      return res.status(404).json({ message: "Level not found" });
+    }
+
+    // Fetch all subjects associated with that levelID
+    const subjects = await Subject.find({ levelID });
+
+    // Format the result
+    const formattedSubjects = subjects.map((subject) => ({
+      _id: subject._id,
+      subjectName: subject.name,
+    }));
+
+    // Send response with level name and subject names
+    res.status(200).send({
+      levelName: level.name,
+      subjects: formattedSubjects,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 exports.getTeachersForAdmin = async (req, res, next) => {
   try {
     const teachers = await User.find({ userType: "teacher" });
@@ -901,7 +962,6 @@ exports.getTeachersForAdmin = async (req, res, next) => {
       .populate("teachers.subject")
       .populate("teachers.teacher");
 
-    console.log(classrooms, "classroom data is hahhahaha");
 
 
     const classes = await Class.find({});
