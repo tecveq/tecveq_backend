@@ -10,7 +10,8 @@ const mongoose = require("mongoose");
 const Activity = require("../models/activities");
 const Level = require("../models/level");
 
-const userRepository = require("../repositories/userRepository")
+const userRepository = require("../repositories/userRepository");
+const Subject = require("../models/subject");
 
 exports.register = async (req, res, next) => {
   try {
@@ -162,6 +163,30 @@ exports.updateUser = async (req, res, next) => {
   }
 };
 
+
+
+
+
+exports.updateStudentSubject = async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+
+
+
+    const user = await User.findByIdAndUpdate(
+      studentId,
+      { subjects: req.body }, // directly use the array
+      { new: true }
+    );
+
+    return res.status(200).send(user);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
 exports.getUsersNotInClassroom = async (req, res, next) => {
   // console.log(req.user);
   try {
@@ -277,48 +302,88 @@ exports.rejectUser = async (req, res, next) => {
 
 exports.getStudentsOfTeacher = async (req, res, next) => {
   try {
-    // const { classroomID, subjectID } = req.query;
-
     const teacherID = req.user._id;
 
     const classrooms = await Classroom.find({
       teachers: {
         $elemMatch: {
           teacher: teacherID,
-          // ...(subjectID && { subject: subjectID }),
         },
       },
-      // ...(classroomID && { _id: classroomID }),
     })
       .populate("students")
       .populate("teachers.subject");
 
     const students = [];
 
-    // finding classes for attendance
-    // const classes = await Class.find({
-    //   classroomID: { $in: classrooms.map((clas) => clas._id) },
-    // }).populate("students");
-
-    classrooms.map((clas) => {
+    for (const clas of classrooms) {
       const found = clas.teachers.find(
         (tea) => tea.teacher.toString() == teacherID
       );
 
-      clas.students.map((student) => {
-        return students.push({
+      for (const student of clas.students) {
+        // ⬇️ Calculate average attendance for each student
+        const pipeline = [
+          {
+            $match: {
+              classroomID: clas._id,
+              subjectID: found.subject._id,
+            },
+          },
+          {
+            $project: {
+              matchedAttendance: {
+                $filter: {
+                  input: "$attendance",
+                  as: "att",
+                  cond: {
+                    $eq: [
+                      "$$att.studentID",
+                      student._id,
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        ];
+
+        const classes = await Class.aggregate(pipeline);
+
+        let totalMarked = 0;
+        let presentCount = 0;
+
+        classes.forEach((cls) => {
+          cls.matchedAttendance.forEach((record) => {
+            if (typeof record.isPresent !== "undefined") {
+              totalMarked++;
+              if (record.isPresent) presentCount++;
+            }
+          });
+        });
+
+        let avgAttendancePer = 0;
+        if (totalMarked > 0) {
+          avgAttendancePer = (presentCount / totalMarked) * 100;
+        }
+
+        students.push({
           ...student._doc,
           classroom: { _id: clas._id, name: clas.name },
           subject: { _id: found.subject._id, name: found.subject.name },
+          avgAttendancePer: avgAttendancePer.toFixed(2),
         });
-      });
-    });
+      }
+    }
 
     res.send(students);
   } catch (error) {
     next(error);
   }
 };
+
+
+
 
 exports.getStudentReportForTeacher = async (req, res, next) => {
   try {
@@ -894,6 +959,42 @@ exports.getStudentSubjects = async (req, res, next) => {
   }
 };
 
+
+
+
+
+
+exports.getSubjectsWithLevel = async (req, res, next) => {
+  try {
+    const { levelID } = req.params;
+
+
+    // Fetch level name using levelID
+    const level = await Level.findById(levelID);
+    if (!level) {
+      return res.status(404).json({ message: "Level not found" });
+    }
+
+    // Fetch all subjects associated with that levelID
+    const subjects = await Subject.find({ levelID });
+
+    // Format the result
+    const formattedSubjects = subjects.map((subject) => ({
+      _id: subject._id,
+      subjectName: subject.name,
+    }));
+
+    // Send response with level name and subject names
+    res.status(200).send({
+      levelName: level.name,
+      subjects: formattedSubjects,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 exports.getTeachersForAdmin = async (req, res, next) => {
   try {
     const teachers = await User.find({ userType: "teacher" });
@@ -901,7 +1002,6 @@ exports.getTeachersForAdmin = async (req, res, next) => {
       .populate("teachers.subject")
       .populate("teachers.teacher");
 
-    console.log(classrooms, "classroom data is hahhahaha");
 
 
     const classes = await Class.find({});
