@@ -1,6 +1,7 @@
 const Subject = require("../models/subject");
 const Classroom = require("../models/classroom");
 const Level = require("../models/level");
+const User = require("../models/user");
 
 
 exports.createSubject = async (req, res, next) => {
@@ -163,6 +164,33 @@ exports.getTeacherSubjectsOfClassrooms = async (req, res, next) => {
     });
 
     return res.status(200).json({ subjects: allSubjects });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
+
+exports.getSubjectOfStudent = async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+
+    if (!studentId || studentId === "undefined") {
+      return res.status(400).json({ message: "Invalid student ID" });
+    }
+
+    const student = await User.findById(studentId).select("subjects");
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    const subjects = await Subject.find({
+      _id: { $in: student.subjects },
+    }).select("_id name");
+
+    res.status(200).send({ subjects: subjects });
   } catch (err) {
     next(err);
   }
