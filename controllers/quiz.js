@@ -64,8 +64,13 @@ exports.createQuiz = async (req, res, next) => {
 };
 
 exports.editQuiz = async (req, res, next) => {
-  const { title, text, totalMarks, dueDate, files, canSubmitAfterTime } = req.body;
+  const { title, text, totalMarks, subjectID, dueDate, files, canSubmitAfterTime } = req.body;
   const { id } = req.params;
+
+  console.log(
+    subjectID, "subject id"
+  );
+
   try {
     if (dueDate)
       if (new Date() > new Date(dueDate)) {
@@ -87,6 +92,7 @@ exports.editQuiz = async (req, res, next) => {
     quiz.title = title ? title : quiz.title;
     quiz.text = text ? text : quiz.text;
     quiz.totalMarks = totalMarks ? totalMarks : quiz.totalMarks;
+    quiz.subjectID = subjectID ? subjectID : quiz.subjectID;
     quiz.dueDate = dueDate ? dueDate : quiz.dueDate;
     quiz.files = files ? files : quiz.files;
     quiz.canSubmitAfterTime = canSubmitAfterTime
