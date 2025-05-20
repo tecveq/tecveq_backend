@@ -51,7 +51,7 @@ app.use(
   cors({
     credentials: true,
     origin: isProduction
-      ? ["https://tca-frontend-sync-git-main-zees-projects-3a466cf5.vercel.app", "*"]  // Production URLs only
+      ? ["https://tca-frontend-sync-git-main-zees-projects-3a466cf5.vercel.app", "https://tca.educativecloud.com", "*"]  // Production URLs only
       : ["http://localhost:5173", "*"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -199,8 +199,8 @@ mongoose.connect(
 var port = isProduction ? 443 : 4000;
 const sslOptions = isProduction
   ? {
-    key: fs.readFileSync("/etc/letsencrypt/live/manolms.com/privkey.pem"),
-    cert: fs.readFileSync("/etc/letsencrypt/live/manolms.com/fullchain.pem"),
+    key: fs.readFileSync("/etc/letsencrypt/live/tcabe.educativecloud.com/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/tcabe.educativecloud.com/fullchain.pem"),
   }
   : undefined;
 var server = isProduction
