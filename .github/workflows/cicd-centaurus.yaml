@@ -3,7 +3,7 @@ name: TCA_Centaurus
 on:
   push:
     branches:
-      - release/centaurus_test
+      - release/centaurus
 
 jobs:
   build:
