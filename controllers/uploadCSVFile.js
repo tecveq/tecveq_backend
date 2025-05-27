@@ -256,6 +256,7 @@ const processStudentCSV = async (results) => {
                     userType: "student",
                     gender: Gender || "Not specified",
                     guardianName: FatherName,
+                    isAccepted: true,
                     guardianEmail: guardianEmail,
                     guardianPhoneNumber: GuardianPhone || "000000",
                     password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO",
@@ -276,6 +277,7 @@ const processStudentCSV = async (results) => {
                     email: guardianEmail,
                     phoneNumber: GuardianPhone || "000000",
                     userType: "parent",
+                    isAccepted: true,
                     password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO",
                     rollNo: `${rollNumberString}-Parent`,
                     referenceNo: `${generatedReferenceNo}786`,
@@ -336,6 +338,7 @@ const processTeacherCSV = async (results) => {
                 email: Email,
                 referenceNo: TeacherEmployeeID,
                 phoneNumber: TeacherPhone || "000000",
+                isAccepted: true,
                 gender: "not specified",
                 userType: "teacher",
                 password: "$2a$10$5dalLDxkCgHNs9wsO4mbYuL2zGUQVBu320HcXXTdJjocvxLh0laHO", // Dummy password
@@ -378,7 +381,7 @@ const validateClassroomData = async (results) => {
             if (!student_email) {
                 errorMessage += "student_email, ";
             }
-            
+
             // Remove the last comma and space
             errorMessage = errorMessage.trim().replace(/,$/, "");
 
@@ -534,7 +537,7 @@ const processClassroomCSV = async (results, currUser) => {
                 try {
                     subject = await Subject.findOne({ name: subjectName, levelID: level._id });
 
-            
+
                 } catch (error) {
                     if (error.code === 11000) {
                         console.warn(`❌ Skipping duplicate subject: ${subject_name}`);
