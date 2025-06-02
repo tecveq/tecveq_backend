@@ -1,5 +1,7 @@
 const Subject = require("../models/subject");
 const Classroom = require("../models/classroom");
+const Level = require("../models/level");
+const User = require("../models/user");
 
 
 exports.createSubject = async (req, res, next) => {
@@ -130,4 +132,66 @@ exports.getTeacherSubjects = async (req, res, next) => {
 };
 
 
+exports.getTeacherSubjectsOfClassrooms = async (req, res, next) => {
+  try {
+    const { classroomIDs } = req.body;
+    const teacherId = req.user._id;
 
+    if (!Array.isArray(classroomIDs) || classroomIDs.length === 0) {
+      return res.status(400).json({ message: "Classroom IDs are required." });
+    }
+
+    const classrooms = await Classroom.find({ _id: { $in: classroomIDs } })
+      .populate("levelID", "name")
+      .populate("teachers.subject", "name");
+
+    let allSubjects = [];
+
+    classrooms.forEach(classroom => {
+      const teacherSubjects = classroom.teachers.filter(
+        (entry) => entry.teacher.toString() === teacherId.toString()
+      );
+
+      const subjects = teacherSubjects.map((entry) => ({
+        classroomId: classroom._id,
+        levelName: classroom.levelID?.name || "",
+        subjectId: entry.subject._id,
+        subjectName: entry.subject.name,
+        type: entry.type, // head or teacher
+      }));
+
+      allSubjects = [...allSubjects, ...subjects];
+    });
+
+    return res.status(200).json({ subjects: allSubjects });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
+
+exports.getSubjectOfStudent = async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+
+    if (!studentId || studentId === "undefined") {
+      return res.status(400).json({ message: "Invalid student ID" });
+    }
+
+    const student = await User.findById(studentId).select("subjects");
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    const subjects = await Subject.find({
+      _id: { $in: student.subjects },
+    }).select("_id name");
+
+    res.status(200).send({ subjects: subjects });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -5,6 +5,10 @@ const controller = require("../controllers/user");
 // update user
 userRouter.put("/update", controller.updateUser);
 
+userRouter.put("/admin/user/update-student-subject/:studentId", controller.updateStudentSubject);
+
+
+
 // Logout route
 userRouter.get("/logout", controller.logout);
 
@@ -43,7 +47,7 @@ userRouter.get(
 
 // get subjects of student for admin
 userRouter.get("/student-subjects/:studentID", controller.getStudentSubjects);
-
+userRouter.get("/student-subjects-with-level/:levelID", controller.getSubjectsWithLevel);
 // get assignments and quizes of student of a subject for admin
 userRouter.get(
   "/student-assignments-quizes/:studentID/:subjectID",
