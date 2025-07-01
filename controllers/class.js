@@ -10,6 +10,135 @@ const { createSpace, authorize, getMeetingParticipents } = require("../test-meet
 const Setting = require("../models/settingsModel");
 
 
+// exports.createClass = async (req, res) => {
+//   try {
+//     const {
+//       title,
+//       startTime,
+//       endTime,
+//       startEventDate,
+//       endEventDate,
+//       classroomID,
+//       subjectID,
+//       teacher,
+//       selectedDays,
+//       meetingUrl,
+//       oneTime // Make sure to extract `oneTime` from the request body
+//     } = req.body;
+
+//     // Validate classroom
+//     const classroom = await Classroom.findById(classroomID);
+//     if (!classroom) {
+//       return res.status(400).json({ error: 'Classroom does not exist' });
+//     }
+
+//     // Validate subject
+//     const subject = await Subject.findById(subjectID);
+//     if (!subject) {
+//       return res.status(400).json({ error: 'Subject does not exist' });
+//     }
+
+//     // Validate event dates
+//     const startDate = moment.tz(startEventDate, 'Asia/Karachi');
+//     const endDate = moment.tz(endEventDate, 'Asia/Karachi');
+
+//     if (!startDate.isValid() || !endDate.isValid() || startDate.isAfter(endDate)) {
+//       return res.status(400).json({ error: 'Invalid start or end event dates' });
+//     }
+
+//     // Validate selected days
+//     if (!Array.isArray(selectedDays) || selectedDays.length === 0) {
+//       return res.status(400).json({ error: 'Please select at least one day.' });
+//     }
+
+//     const dayMap = {
+//       Sunday: 0,
+//       Monday: 1,
+//       Tuesday: 2,
+//       Wednesday: 3,
+//       Thursday: 4,
+//       Friday: 5,
+//       Saturday: 6,
+//     };
+
+//     const selectedDayNumbers = selectedDays.map(day => dayMap[day]);
+//     const events = [];
+//     let currentDate = startDate.clone();
+//     const isMultiDay = !moment(startDate).isSame(endDate, 'day');
+//     const groupID = isMultiDay ? new mongoose.Types.ObjectId() : null;
+//     // Loop through dates to create events on selected days
+//     while (currentDate.isSameOrBefore(endDate)) {
+//       if (selectedDayNumbers.includes(currentDate.day())) {
+//         const dayStart = moment.tz(`${currentDate.format('YYYY-MM-DD')}T${startTime.split('T')[1]}`, 'Asia/Karachi').subtract(5, 'hours');
+//         const dayEnd = moment.tz(`${currentDate.format('YYYY-MM-DD')}T${endTime.split('T')[1]}`, 'Asia/Karachi').subtract(5, 'hours');
+
+
+
+//         // Validate that start and end times are valid
+//         if (!dayStart.isValid() || !dayEnd.isValid()) {
+//           return res.status(400).json({
+//             error: `Invalid start or end time for ${currentDate.format('YYYY-MM-DD')}`,
+//             details: { startTime, endTime, dayStart, dayEnd }
+//           });
+//         }
+
+//         // Ensure end time is after start time
+//         if (dayEnd.isBefore(dayStart)) {
+//           return res.status(400).json({ error: 'End time cannot be before start time' });
+//         }
+
+//         console.log("startTime:", dayEnd.toDate(), "endTime:", dayStart.toDate());
+
+
+//         // Check for teacher conflict
+//         const teacherConflict = await Class.findOne({
+//           'teacher.teacherID': teacher.teacherID,
+//           startTime: { $lt: dayEnd.toDate() },
+//           endTime: { $gt: dayStart.toDate() },
+//         });
+
+//         if (teacherConflict) {
+//           return res.status(400).json({
+//             error: `Teacher has a conflict on ${currentDate.format('YYYY-MM-DD')}`,
+//           });
+//         }
+
+//         // Create event with all required fields
+//         events.push({
+//           title,
+//           startTime: dayStart.toDate(),
+//           endTime: dayEnd.toDate(),
+//           classroomID,
+//           subjectID,
+//           teacher,
+//           meetingUrl,
+//           createdBy: req.user._id,
+//           startEventDate, // Add startEventDate
+//           endEventDate,   // Add endEventDate
+//           oneTime,        // Add oneTime
+//           groupID
+//         });
+//       }
+//       currentDate.add(1, 'day');
+//     }
+
+//     if (events.length === 0) {
+//       return res.status(400).json({
+//         error: 'No valid classes were scheduled. Please check your selected days.',
+//       });
+//     }
+
+//     // Bulk insert events into the database
+//     await Class.insertMany(events);
+//     res.status(201).json({ message: 'Classes created successfully', events });
+//   } catch (err) {
+//     console.error('Error creating class:', err);
+//     res.status(500).json({ error: 'An error occurred while creating the class' });
+//   }
+// };
+
+
+
 exports.createClass = async (req, res) => {
   try {
     const {
@@ -23,22 +152,19 @@ exports.createClass = async (req, res) => {
       teacher,
       selectedDays,
       meetingUrl,
-      oneTime // Make sure to extract `oneTime` from the request body
+      oneTime
     } = req.body;
 
-    // Validate classroom
     const classroom = await Classroom.findById(classroomID);
     if (!classroom) {
       return res.status(400).json({ error: 'Classroom does not exist' });
     }
 
-    // Validate subject
     const subject = await Subject.findById(subjectID);
     if (!subject) {
       return res.status(400).json({ error: 'Subject does not exist' });
     }
 
-    // Validate event dates
     const startDate = moment.tz(startEventDate, 'Asia/Karachi');
     const endDate = moment.tz(endEventDate, 'Asia/Karachi');
 
@@ -46,7 +172,6 @@ exports.createClass = async (req, res) => {
       return res.status(400).json({ error: 'Invalid start or end event dates' });
     }
 
-    // Validate selected days
     if (!Array.isArray(selectedDays) || selectedDays.length === 0) {
       return res.status(400).json({ error: 'Please select at least one day.' });
     }
@@ -63,32 +188,27 @@ exports.createClass = async (req, res) => {
 
     const selectedDayNumbers = selectedDays.map(day => dayMap[day]);
     const events = [];
+    const groupID = !moment(startDate).isSame(endDate, 'day') ? new mongoose.Types.ObjectId() : null;
+
     let currentDate = startDate.clone();
-    const isMultiDay = !moment(startDate).isSame(endDate, 'day');
-    const groupID = isMultiDay ? new mongoose.Types.ObjectId() : null;
-    // Loop through dates to create events on selected days
+
     while (currentDate.isSameOrBefore(endDate)) {
       if (selectedDayNumbers.includes(currentDate.day())) {
-        // Ensure the start and end time are valid time strings (HH:mm:ss)
         const dayStart = moment.tz(`${currentDate.format('YYYY-MM-DD')}T${startTime.split('T')[1]}`, 'Asia/Karachi').subtract(5, 'hours');
         const dayEnd = moment.tz(`${currentDate.format('YYYY-MM-DD')}T${endTime.split('T')[1]}`, 'Asia/Karachi').subtract(5, 'hours');
 
-        // Debugging: Log the parsed moment objects for start and end times
-        console.log('Parsed dayStart:', dayStart.format());
-        console.log('Parsed dayEnd:', dayEnd.format());
-
-        // Validate that start and end times are valid
         if (!dayStart.isValid() || !dayEnd.isValid()) {
           return res.status(400).json({
-            error: `Invalid start or end time for ${currentDate.format('YYYY-MM-DD')}`,
-            details: { startTime, endTime, dayStart, dayEnd }
+            error: `Invalid time for ${currentDate.format('YYYY-MM-DD')}`,
+            details: { startTime, endTime }
           });
         }
 
-        // Ensure end time is after start time
         if (dayEnd.isBefore(dayStart)) {
           return res.status(400).json({ error: 'End time cannot be before start time' });
         }
+
+        const dateStr = currentDate.format('YYYY-MM-DD');
 
         // Check for teacher conflict
         const teacherConflict = await Class.findOne({
@@ -98,12 +218,33 @@ exports.createClass = async (req, res) => {
         });
 
         if (teacherConflict) {
-          return res.status(400).json({
-            error: `Teacher has a conflict on ${currentDate.format('YYYY-MM-DD')}`,
-          });
+          return res.status(400).json({ error: `Teacher has a scheduling conflict on ${dateStr}` });
         }
 
-        // Create event with all required fields
+        // Check for classroom conflict
+        const classroomConflict = await Class.findOne({
+          classroomID,
+          startTime: { $lt: dayEnd.toDate() },
+          endTime: { $gt: dayStart.toDate() },
+        });
+
+        if (classroomConflict) {
+          return res.status(400).json({ error: `Classroom is already booked on ${dateStr}` });
+        }
+
+        // Prevent duplicate class with same title, teacher, time, classroom
+        const duplicateClass = await Class.findOne({
+          title,
+          'teacher.teacherID': teacher.teacherID,
+          classroomID,
+          startTime: dayStart.toDate(),
+          endTime: dayEnd.toDate(),
+        });
+
+        if (duplicateClass) {
+          return res.status(400).json({ error: `Duplicate class already exists on ${dateStr}` });
+        }
+
         events.push({
           title,
           startTime: dayStart.toDate(),
@@ -113,31 +254,28 @@ exports.createClass = async (req, res) => {
           teacher,
           meetingUrl,
           createdBy: req.user._id,
-          startEventDate, // Add startEventDate
-          endEventDate,   // Add endEventDate
-          oneTime,        // Add oneTime
+          startEventDate,
+          endEventDate,
+          oneTime,
           groupID
         });
       }
+
       currentDate.add(1, 'day');
     }
 
     if (events.length === 0) {
-      return res.status(400).json({
-        error: 'No valid classes were scheduled. Please check your selected days.',
-      });
+      return res.status(400).json({ error: 'No valid class instances found for the selected days' });
     }
 
-    // Bulk insert events into the database
     await Class.insertMany(events);
     res.status(201).json({ message: 'Classes created successfully', events });
+
   } catch (err) {
     console.error('Error creating class:', err);
     res.status(500).json({ error: 'An error occurred while creating the class' });
   }
 };
-
-
 
 
 exports.updateClass = async (req, res, next) => {
