@@ -31,6 +31,7 @@ const assignmentRouter = require("./routes/assignment");
 const notificationRouter = require("./routes/notification");
 const attendenceRouter = require("./routes/attendenceRouter");
 const feedbackRouter = require("./routes/feedback");
+const promoteRouter = require("./routes/studentPromote");
 const quizRouter = require("./routes/quiz");
 const { io } = require("./utils/socket");
 const { checkLoggedIn } = require("./middlewares/checkLoggedIn");
@@ -87,7 +88,9 @@ app.use("/api/auth/", authRouter);
 app.use("/api/level/", levelRouter);
 app.use("/api/quiz/", checkLoggedIn, quizRouter);
 app.use("/api/user/", checkLoggedIn, userRouter);
-app.use("/api/class/", checkLoggedIn, classRouter);
+app.use("/api/class/",
+  // checkLoggedIn,
+  classRouter);
 app.use("/api/subject/", checkLoggedIn, subjectRouter);
 app.use("/api/feedback/", checkLoggedIn, feedbackRouter);
 app.use("/api/classroom/", checkLoggedIn, classoomRouter);
@@ -102,10 +105,18 @@ app.use("/api/notification/", checkLoggedIn, notificationRouter);
 app.use("/api/announcement/", checkLoggedIn, announcementRouter);
 app.use("/api/parent", require("./routes/parent"));
 app.use("/api/upload/", require("./routes/uploadCSVFile"));
-
 app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
+app.use("/webhook", require("./routes/whatsapp/whatsapp"));
+app.use("/api/admin/", checkLoggedIn, promoteRouter);
+
+
+
+
 app.get("/", (req, res) => {
+
+
   // res.sendFile(path.resolve(__dirname, "public", "index.html"));
+
   return res.send({
     success: true,
     lastCount: 107,
@@ -187,7 +198,7 @@ app.use(function (err, req, res, next) {
 const db = process.env.MONGO_CONNECTION;
 mongoose.connect(
   db,
-  { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true ,tlsAllowInvalidCertificates: true},
+  { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true, tlsAllowInvalidCertificates: true },
   (err) => {
     if (err) {
       console.log(err);
