@@ -1,4 +1,4 @@
-name: TCS
+name: TCS_Shalimar
 
 on:
   push:
