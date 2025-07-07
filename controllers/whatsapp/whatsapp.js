@@ -4,11 +4,12 @@ const User = require("../../models/user");
 const Class = require("../../models/class");
 const Assignment = require("../../models/assignment");
 const Quiz = require("../../models/quiz")
+const url = "https://graph.facebook.com/v23.0/678020068725286/messages";
 
 const WHATSAPP_ACCESS_TOKEN =
-    "EAAUCGLXYi5wBO2wiB6V5XCuZCaB6PPBd2ZCsjSEEeV5DgJgq7seX8ScvccHtkv7YGtsi9e1FykZAhdUoEhpsXnXQ0acs9uendZA8kD0nCopZCnNSMEsVt79qx0DZABy8z8Ve9TdSKyyFGwSxnim0gNOQSPpCZA3I9dTXO98118BQwcSyCGbnd7zagZCKaqxTN0YcKlnhifNhNK4K30fuYvFuSmuOZBEe3rR2Dbk7PKTLdEbGkh5IZD";
+    "EAAUCGLXYi5wBOZCIAZBuXaqxz8vSwck2TC2AZAyszj3jPqN68z3ZCe6nCkrEvu9uJJBbvBNsaYQefWmWlN5eQZChMRTLhgwUl0mZC06J0b5VAKuh3aDbRnjxD6nc6j5BxbXIbYDaEk0ZChVvhH2ODTSPxo1YO4vRN8ozCT4uTgWXpv5QGnNdoQ7FJ67RqHLObeU";
 
-const WEBHOOK_VERIFY_TOKEN = "my-verify-token";
+const WEBHOOK_VERIFY_TOKEN = "EAAUCGLXYi5wBOZCIAZEAAUCGLXYi5wBOZCIAZ";
 
 exports.getWebHook = async (req, res) => {
     console.log("webhook endpoint hit", req.query);
@@ -339,6 +340,8 @@ exports.createWebHook = async (req, res) => {
 };
 
 async function replyStudentList(to, students, messageId) {
+
+
     if (!to || !Array.isArray(students) || students.length === 0) {
         console.warn("Invalid input: 'to' or 'students' is missing or empty.");
         return;
@@ -379,7 +382,6 @@ async function replyStudentList(to, students, messageId) {
             payload.context = { message_id: messageId };
         }
 
-        const url = "https://graph.facebook.com/v22.0/678020068725286/messages";
         const headers = {
             Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
             "Content-Type": "application/json",
@@ -399,7 +401,6 @@ async function sendMessage(to, body) {
         return;
     }
 
-    const url = "https://graph.facebook.com/v22.0/678020068725286/messages";
     const headers = {
         Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
         "Content-Type": "application/json",
@@ -423,7 +424,6 @@ async function sendMessage(to, body) {
 
 
 async function replyStudentOptions(to, studentID, messageId) {
-    const url = "https://graph.facebook.com/v22.0/678020068725286/messages";
     const headers = {
         Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
         "Content-Type": "application/json",
