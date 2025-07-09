@@ -6,6 +6,7 @@ const Level = require("../models/level");
 const classroomRepository = require("../repositories/classroomRepository");
 const levelRepository = require("../repositories/levelRepository");
 const subjectRepository = require("../repositories/subjectRepository");
+const Attendance = require("../models/attendence");
 
 exports.createClassroom = async (req, res, next) => {
   try {
@@ -679,5 +680,351 @@ exports.updateClassroom = async (req, res, next) => {
     return res.status(200).send(updatedClassroom);
   } catch (err) {
     next(err);
+  }
+};
+
+
+
+
+
+exports.getAllClassrooms = async (req, res) => {
+  try {
+    const classrooms = await Classroom.find()
+      .populate({
+        path: "levelID",
+        select: "name", // Only get the name field from Level
+      })
+      .populate({
+        path: "students",
+        select: "name rollNo email gender phoneNumber subjects", // Select specific student fields
+      })
+      .populate({
+        path: "teachers.teacher",
+        select: "name email phoneNumber", // Select specific teacher fields
+      })
+      .populate({
+        path: "teachers.subject",
+        select: "name levelID", // Select specific subject fields
+      })
+      .populate({
+        path: "createdBy",
+        select: "name email userType", // Select specific admin/creator fields
+      })
+      .lean(); // Use lean() for better performance since we're only reading
+
+    // Transform the data to match your frontend structure
+    const transformedClassrooms = classrooms.map(classroom => ({
+      _id: classroom._id,
+      name: classroom.name,
+      levelID: classroom.levelID?._id,
+      level: classroom.levelID ? {
+        _id: classroom.levelID._id,
+        name: classroom.levelID.name
+      } : null,
+      students: classroom.students.map(student => ({
+        _id: student._id,
+        name: student.name,
+        rollNo: student.rollNo,
+        email: student.email,
+        gender: student.gender,
+        phoneNumber: student.phoneNumber,
+        subjectIDs: student.subjects || []
+      })),
+      teachers: classroom.teachers.map(teacherObj => ({
+        type: teacherObj.type,
+        teacher: {
+          _id: teacherObj.teacher._id,
+          name: teacherObj.teacher.name,
+          email: teacherObj.teacher.email,
+          phoneNumber: teacherObj.teacher.phoneNumber
+        },
+        subject: teacherObj.subject ? {
+          _id: teacherObj.subject._id,
+          name: teacherObj.subject.name,
+          levelID: teacherObj.subject.levelID
+        } : null
+      })),
+      createdBy: classroom.createdBy ? {
+        _id: classroom.createdBy._id,
+        name: classroom.createdBy.name,
+        email: classroom.createdBy.email,
+        userType: classroom.createdBy.userType
+      } : null
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Classrooms fetched successfully",
+      data: transformedClassrooms,
+      count: transformedClassrooms.length
+    });
+
+  } catch (error) {
+    console.error("Error fetching classrooms:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch classrooms",
+      error: error.message
+    });
+  }
+}
+
+
+
+
+
+// exports.getStudentAttendanceReport = async (req, res) => {
+//   try {
+//     const { classroomId, subjectId, startDate, endDate } = req.query;
+
+//     // Validate required fields
+//     if (!classroomId || !subjectId || !startDate || !endDate) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Missing required fields: classroomId, subjectId, startDate, endDate"
+//       });
+//     }
+
+//     // Convert input dates to Date objects
+//     const startDateObj = new Date(startDate);
+//     const endDateObj = new Date(endDate);
+//     endDateObj.setHours(23, 59, 59, 999); // Include entire end day
+
+//     // Find classroom and populate students
+//     const classroom = await Classroom.findById(classroomId).populate('students');
+//     if (!classroom) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Classroom not found"
+//       });
+//     }
+
+//     // Find all classes in the range with the given subject
+//     const classes = await Class.find({
+//       classroomID: classroomId,
+//       subjectID: subjectId,
+//       startEventDate: { $gte: startDateObj, $lte: endDateObj }
+//     }).populate('subjectID', 'name');
+
+//     if (!classes.length) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "No classes found in the selected date range.",
+//         data: []
+//       });
+//     }
+
+//     const responseData = [];
+
+//     // Process each class separately
+//     for (const classItem of classes) {
+//       const rawDate = new Date(classItem.startEventDate);
+//       const dateKey = rawDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
+
+//       // Log class date for debug purposes
+//       console.log(`[${classItem.title}] Class Date: ${dateKey}`);
+
+//       // Only process students who have attendance records for this specific class
+//       if (classItem.attendance && classItem.attendance.length > 0) {
+//         for (const attendanceRecord of classItem.attendance) {
+//           // Find student details
+//           const student = classroom.students.find(
+//             s => s._id.toString() === attendanceRecord.studentID.toString()
+//           );
+
+//           if (student) {
+//             let status = 'absent';
+
+//             // Determine status based on attendance record
+//             if (attendanceRecord.isPresent) {
+//               status = attendanceRecord.late ? 'present-late' : 'present';
+//             } else {
+//               status = 'absent';
+//             }
+
+//             responseData.push({
+//               studentId: student._id,
+//               studentName: student.name,
+//               rollNo: student.rollNo || 'N/A',
+//               classroomName: classroom.name,
+//               subjectId: classItem.subjectID._id,
+//               subjectName: classItem.subjectID.name,
+//               date: dateKey,
+//               status,
+//               classId: classItem._id,
+//               classTitle: classItem.title
+//             });
+//           }
+//         }
+//       }
+//     }
+
+//     // Sort by date, then by class title, then by student name
+//     responseData.sort((a, b) => {
+//       if (a.date === b.date) {
+//         if (a.classTitle === b.classTitle) {
+//           return a.studentName.localeCompare(b.studentName);
+//         }
+//         return a.classTitle.localeCompare(b.classTitle);
+//       }
+//       return new Date(a.date) - new Date(b.date);
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Student attendance report generated successfully",
+//       data: responseData,
+//       summary: {
+//         totalRecords: responseData.length,
+//         totalClasses: classes.length,
+//         totalStudents: classroom.students.length,
+//         dateRange: {
+//           from: startDate,
+//           to: endDate
+//         }
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error("Error generating attendance report:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Internal server error while generating attendance report",
+//       error: error.message
+//     });
+//   }
+// };
+
+
+
+exports.getStudentAttendanceReport = async (req, res) => {
+  try {
+    const { classroomId, subjectId, startDate, endDate } = req.query;
+
+    // Validate required fields
+    if (!classroomId || !subjectId || !startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: classroomId, subjectId, startDate, endDate"
+      });
+    }
+
+    // Convert input dates to Date objects
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    endDateObj.setHours(23, 59, 59, 999); // Include entire end day
+
+    // Find classroom and populate students
+    const classroom = await Classroom.findById(classroomId).populate('students');
+    if (!classroom) {
+      return res.status(404).json({
+        success: false,
+        message: "Classroom not found"
+      });
+    }
+
+    // Find all classes in the range with the given subject
+    const classes = await Class.find({
+      classroomID: classroomId,
+      subjectID: subjectId,
+      startEventDate: { $gte: startDateObj, $lte: endDateObj }
+    }).populate('subjectID', 'name');
+
+    if (!classes.length) {
+      return res.status(200).json({
+        success: true,
+        message: "No classes found in the selected date range.",
+        data: []
+      });
+    }
+
+    const responseData = [];
+
+    // Process each class separately
+    for (const classItem of classes) {
+      const rawDate = new Date(classItem.startTime);
+      const dateKey = rawDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
+
+      // Log class date for debug purposes
+      console.log(`[${classItem.title}] Class Date: ${dateKey}`);
+
+      // Filter students who are enrolled in this subject
+      const enrolledStudents = classroom.students.filter(student =>
+        student.subjects && student.subjects.includes(subjectId)
+      );
+
+      console.log(`Class: ${classItem.title}, Total students in classroom: ${classroom.students.length}, Enrolled in subject: ${enrolledStudents.length}`);
+
+      // Process only enrolled students
+      for (const student of enrolledStudents) {
+        let status = 'absent'; // Default status
+
+        // Check if student has attendance record for this class
+        if (classItem.attendance && classItem.attendance.length > 0) {
+          const attendanceRecord = classItem.attendance.find(
+            att => att.studentID.toString() === student._id.toString()
+          );
+
+          if (attendanceRecord) {
+            // Determine status based on attendance record
+            if (attendanceRecord.isPresent) {
+              status = attendanceRecord.late ? 'present-late' : 'present';
+            } else {
+              status = 'absent';
+            }
+          }
+          // If no attendance record found, status remains 'absent'
+        }
+
+        responseData.push({
+          studentId: student._id,
+          studentName: student.name,
+          rollNo: student.rollNo || 'N/A',
+          classroomName: classroom.name,
+          subjectId: classItem.subjectID._id,
+          subjectName: classItem.subjectID.name,
+          date: dateKey,
+          status,
+          classId: classItem._id,
+          classTitle: classItem.title
+        });
+      }
+    }
+
+    // Sort by date, then by class title, then by student name
+    responseData.sort((a, b) => {
+      if (a.date === b.date) {
+        if (a.classTitle === b.classTitle) {
+          return a.studentName.localeCompare(b.studentName);
+        }
+        return a.classTitle.localeCompare(b.classTitle);
+      }
+      return new Date(a.date) - new Date(b.date);
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Student attendance report generated successfully",
+      data: responseData,
+      summary: {
+        totalRecords: responseData.length,
+        totalClasses: classes.length,
+        totalStudents: classroom.students.length,
+        enrolledStudents: responseData.length > 0 ?
+          [...new Set(responseData.map(record => record.studentId))].length : 0,
+        dateRange: {
+          from: startDate,
+          to: endDate
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("Error generating attendance report:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while generating attendance report",
+      error: error.message
+    });
   }
 };
