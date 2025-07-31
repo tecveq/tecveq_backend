@@ -109,8 +109,8 @@ const processSubjectCSV = async (results) => {
                 }
 
                 // Normalize input data
-                subjectName = subjectName.trim().replace(/\s+/g, ' ').toLowerCase();; // Remove extra spaces between words
-                levelName = levelName.trim().replace(/\s+/g, ' ').toLowerCase(); // Remove extra spaces & convert to lowercase
+                subjectName = subjectName.trim().replace(/\s+/g, ' '); // Remove extra spaces between words
+                levelName = levelName.trim().replace(/\s+/g, ' '); // Remove extra spaces & convert to lowercase
 
 
 
@@ -191,7 +191,7 @@ const validateStudentData = async (results) => {
             return [`Row ${i + 2}: Gender is missing`];
         }
         // Normalize level name
-        const levelName = LevelName.replace(/\s+/g, ' ').trim().toLowerCase();
+        const levelName = LevelName.replace(/\s+/g, ' ').trim();
 
         try {
             // Validate level
@@ -231,7 +231,7 @@ const processStudentCSV = async (results) => {
             } = row;
 
             const rollNumberString = RollNo.trim();
-            let levelNames = LevelName.split(",").map(name => name.trim().replace(/\s+/g, ' ').toLowerCase());
+            let levelNames = LevelName.split(",").map(name => name.trim().replace(/\s+/g, ' '));
 
             // Fetch Level
             let level = await Level.findOne({ name: levelNames });
@@ -240,7 +240,9 @@ const processStudentCSV = async (results) => {
             // Default email values if empty
             const studentEmail = Email && Email.trim() !== "" ? Email : `${rollNumberString}@educativecloud.com`;
             const guardianEmail = GuardianEmail && GuardianEmail.trim() !== "" ? GuardianEmail : `${rollNumberString}.guardian@educativecloud.com`;
-            const generatedReferenceNo = CardNumber || `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+            const generatedReferenceNo = (CardNumber && CardNumber !== '0')
+                ? CardNumber
+                : `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
             // Upsert Student
             await User.findOneAndUpdate(
@@ -402,8 +404,8 @@ const validateClassroomData = async (results) => {
 
 
 
-        const levelName = level_name.replace(/\s+/g, ' ').trim().toLowerCase();
-        const subjectName = subject_name.replace(/\s+/g, ' ').trim().toLowerCase();
+        const levelName = level_name.replace(/\s+/g, ' ').trim();
+        const subjectName = subject_name.replace(/\s+/g, ' ').trim();
 
         try {
             // Validate level
@@ -459,8 +461,8 @@ const processClassroomCSV = async (results, currUser) => {
             let level;
 
 
-            let levelName = level_name.replace(/\s+/g, ' ').trim().toLowerCase();
-            let subjectName = subject_name.replace(/\s+/g, ' ').trim().toLowerCase();
+            let levelName = level_name.replace(/\s+/g, ' ').trim();
+            let subjectName = subject_name.replace(/\s+/g, ' ').trim();
 
             try {
                 level = await Level.findOne({ name: levelName });
