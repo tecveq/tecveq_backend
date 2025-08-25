@@ -50,11 +50,15 @@ exports.initializingPassport = (passport) => {
             );
             console.log(validPass ,":password is checkinf:");
             
-            if (!validPass) {
+            if (!validPass)
               return done(null, false, { message: "The password you entered is incorrect. Please try again." });
-            } else {
-              return done(null, foundUser);
+            
+            // Check if account is approved (except for admins)
+            if (foundUser.userType !== "admin" && !foundUser.isAccepted) {
+              return done(null, false, { message: "Account pending admin approval" });
             }
+            
+            return done(null, foundUser);
           }
         } catch (err) {
           return done(err, false);
