@@ -53,7 +53,6 @@ exports.initializingPassport = (passport) => {
             if (!validPass)
               return done(null, false, { message: "The password you entered is incorrect. Please try again." });
             
-            // Check if account is approved (except for admins)
             if (foundUser.userType !== "admin" && !foundUser.isAccepted) {
               return done(null, false, { message: "Account pending admin approval" });
             }

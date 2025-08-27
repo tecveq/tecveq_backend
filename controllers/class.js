@@ -282,6 +282,10 @@ exports.updateClass = async (req, res, next) => {
   try {
     const {
       classID,
+      title,
+      meetingUrl,
+      teacher,
+      subjectID,
       startTime,
       endTime,
       startEventDate,
@@ -293,6 +297,14 @@ exports.updateClass = async (req, res, next) => {
     const existingClass = await Class.findById(classID);
     if (!existingClass) {
       return res.status(404).json({ error: "Class not found" });
+    }
+
+    // Validate subject if provided
+    if (subjectID) {
+      const subject = await Subject.findById(subjectID);
+      if (!subject) {
+        return res.status(400).json({ error: 'Subject does not exist' });
+      }
     }
 
     console.log(startTime, "start time");
@@ -321,51 +333,78 @@ exports.updateClass = async (req, res, next) => {
       date: startDate.date(),
     }).toISOString();
 
+    // Prepare update object
+    const updateObj = {};
+    
+    // Update basic fields if provided
+    if (title) updateObj.title = title;
+    if (meetingUrl !== undefined) updateObj.meetingUrl = meetingUrl;
+    if (teacher) updateObj.teacher = teacher;
+    if (subjectID) updateObj.subjectID = subjectID;
+    
+    // Ensure required fields are maintained
+    updateObj.oneTime = existingClass.oneTime;
+    updateObj.createdBy = existingClass.createdBy;
+    updateObj.classroomID = existingClass.classroomID;
+    
+    // Update time-related fields
+    updateObj.startTime = updatedStartTime;
+    updateObj.endTime = updatedEndTime;
+    updateObj.startEventDate = startDate.toISOString();
+    updateObj.endEventDate = endDate.toISOString();
+
     // Handle group updates
     if (existingClass.groupID) {
       if (updateSeries) {
         const existingClasses = await Class.find({ groupID: existingClass.groupID });
 
-        existingClasses.forEach(async (cls) => {
-          const clsStart = moment.utc(cls.startTime).tz('Asia/Karachi'); // Convert to PKT
-          const clsEnd = moment.utc(cls.endTime).tz('Asia/Karachi'); // Convert to PKT
+        // Update all classes in the series
+        const updatePromises = existingClasses.map(async (cls) => {
+          const clsStart = moment.utc(cls.startTime).tz('Asia/Karachi');
+          const clsEnd = moment.utc(cls.endTime).tz('Asia/Karachi');
 
           // Extract date parts
-          const startDateOnly = clsStart.format('YYYY-MM-DD'); // Get only the date in PKT
+          const startDateOnly = clsStart.format('YYYY-MM-DD');
           const endDateOnly = clsEnd.format('YYYY-MM-DD');
 
           // Format new time
           const newStartTime = `${startDateOnly}T${start.format('HH:mm:ss')}`;
           const newEndTime = `${endDateOnly}T${end.format('HH:mm:ss')}`;
 
-          // Update the document
-          await Class.updateOne(
-            { _id: cls._id },
-            {
-              startTime: new Date(newStartTime),
-              endTime: new Date(newEndTime),
-            }
-          );
+          // Prepare update object for series
+          const seriesUpdateObj = {
+            startTime: new Date(newStartTime),
+            endTime: new Date(newEndTime),
+          };
+          
+          // Add other fields to all classes in series
+          if (title) seriesUpdateObj.title = title;
+          if (meetingUrl !== undefined) seriesUpdateObj.meetingUrl = meetingUrl;
+          if (teacher) seriesUpdateObj.teacher = teacher;
+          if (subjectID) seriesUpdateObj.subjectID = subjectID;
+          
+          // Maintain required fields
+          seriesUpdateObj.oneTime = cls.oneTime;
+          seriesUpdateObj.createdBy = cls.createdBy;
+          seriesUpdateObj.classroomID = cls.classroomID;
+
+          return Class.updateOne({ _id: cls._id }, seriesUpdateObj);
         });
 
-        return res.status(200).json({ message: "All classes updated successfully" });
+        await Promise.all(updatePromises);
+        return res.status(200).json({ message: "All classes in series updated successfully" });
       } else {
         // Update only the current class
-        existingClass.startTime = updatedStartTime;
-        existingClass.endTime = updatedEndTime;
-        await existingClass.save();
+        await Class.updateOne({ _id: classID }, updateObj);
         return res.status(200).json({ message: "Single class updated successfully" });
       }
     } else {
       // Update single class (no groupID)
-      existingClass.startTime = updatedStartTime;
-      existingClass.endTime = updatedEndTime;
-      existingClass.startEventDate = startDate.toISOString();
-      existingClass.endEventDate = endDate.toISOString(); // Same as startEventDate
-      await existingClass.save();
+      await Class.updateOne({ _id: classID }, updateObj);
+      const updatedClass = await Class.findById(classID).populate('subjectID').populate('teacher.teacherID');
       return res.status(200).json({
-        data: existingClass,
-        message: "Single class updated successfully"
+        data: updatedClass,
+        message: "Class updated successfully"
       });
     }
   } catch (err) {
