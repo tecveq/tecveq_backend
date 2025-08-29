@@ -8,6 +8,13 @@ const mongoose = require("mongoose");
 const moment = require('moment-timezone');
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
 const Setting = require("../models/settingsModel");
+const { 
+  convertToPKT, 
+  convertToPKTAndSubtractHours, 
+  convertDateStringToPKT,
+  createDateTimeInPKT,
+  isWeekend 
+} = require("../utils/timeUtils");
 
 
 // exports.createClass = async (req, res) => {
@@ -165,8 +172,8 @@ exports.createClass = async (req, res) => {
       return res.status(400).json({ error: 'Subject does not exist' });
     }
 
-    const startDate = moment.tz(startEventDate, 'Asia/Karachi');
-    const endDate = moment.tz(endEventDate, 'Asia/Karachi');
+    const startDate = convertDateStringToPKT(startEventDate);
+    const endDate = convertDateStringToPKT(endEventDate);
 
     if (!startDate.isValid() || !endDate.isValid() || startDate.isAfter(endDate)) {
       return res.status(400).json({ error: 'Invalid start or end event dates' });
@@ -194,8 +201,8 @@ exports.createClass = async (req, res) => {
 
     while (currentDate.isSameOrBefore(endDate)) {
       if (selectedDayNumbers.includes(currentDate.day())) {
-        const dayStart = moment.tz(`${currentDate.format('YYYY-MM-DD')}T${startTime.split('T')[1]}`, 'Asia/Karachi').subtract(5, 'hours');
-        const dayEnd = moment.tz(`${currentDate.format('YYYY-MM-DD')}T${endTime.split('T')[1]}`, 'Asia/Karachi').subtract(5, 'hours');
+        const dayStart = convertToPKTAndSubtractHours(`${currentDate.format('YYYY-MM-DD')}T${startTime.split('T')[1]}`, 5);
+        const dayEnd = convertToPKTAndSubtractHours(`${currentDate.format('YYYY-MM-DD')}T${endTime.split('T')[1]}`, 5);
 
         if (!dayStart.isValid() || !dayEnd.isValid()) {
           return res.status(400).json({
@@ -311,15 +318,15 @@ exports.updateClass = async (req, res, next) => {
     console.log(endTime, "end time");
 
 
-    const start = moment.utc(startTime).tz('Asia/Karachi').subtract(5, "hours");  // Convert to PKT timezone
-    const end = moment.utc(endTime).tz('Asia/Karachi').subtract(5, "hours");  // Convert to PKT timezone
+    const start = convertToPKTAndSubtractHours(startTime, 5);  // Convert to PKT timezone
+    const end = convertToPKTAndSubtractHours(endTime, 5);  // Convert to PKT timezone
 
     console.log(start, "start");
     console.log(end, "end");
 
 
-    const startDate = moment(startEventDate).tz('Asia/Karachi');  // Convert to PKT timezone
-    const endDate = moment(endEventDate).tz('Asia/Karachi');  // Convert to PKT timezone
+    const startDate = convertDateStringToPKT(startEventDate);  // Convert to PKT timezone
+    const endDate = convertDateStringToPKT(endEventDate);  // Convert to PKT timezone
 
     const updatedStartTime = start.set({
       year: startDate.year(),
@@ -360,39 +367,85 @@ exports.updateClass = async (req, res, next) => {
 
         // Update all classes in the series
         const updatePromises = existingClasses.map(async (cls) => {
-          const clsStart = moment.utc(cls.startTime).tz('Asia/Karachi');
-          const clsEnd = moment.utc(cls.endTime).tz('Asia/Karachi');
+          try {
+            const clsStart = convertToPKT(cls.startTime);
+            const clsEnd = convertToPKT(cls.endTime);
 
-          // Extract date parts
-          const startDateOnly = clsStart.format('YYYY-MM-DD');
-          const endDateOnly = clsEnd.format('YYYY-MM-DD');
+            // Extract date parts
+            const startDateOnly = clsStart.format('YYYY-MM-DD');
+            const endDateOnly = clsEnd.format('YYYY-MM-DD');
 
-          // Format new time
-          const newStartTime = `${startDateOnly}T${start.format('HH:mm:ss')}`;
-          const newEndTime = `${endDateOnly}T${end.format('HH:mm:ss')}`;
+            // Format new time - FIXED: Use clsStart and clsEnd instead of start and end
+            const newStartTime = createDateTimeInPKT(startDateOnly, clsStart.format('HH:mm:ss'));
+            const newEndTime = createDateTimeInPKT(endDateOnly, clsEnd.format('HH:mm:ss'));
 
-          // Prepare update object for series
-          const seriesUpdateObj = {
-            startTime: new Date(newStartTime),
-            endTime: new Date(newEndTime),
-          };
-          
-          // Add other fields to all classes in series
-          if (title) seriesUpdateObj.title = title;
-          if (meetingUrl !== undefined) seriesUpdateObj.meetingUrl = meetingUrl;
-          if (teacher) seriesUpdateObj.teacher = teacher;
-          if (subjectID) seriesUpdateObj.subjectID = subjectID;
-          
-          // Maintain required fields
-          seriesUpdateObj.oneTime = cls.oneTime;
-          seriesUpdateObj.createdBy = cls.createdBy;
-          seriesUpdateObj.classroomID = cls.classroomID;
+            // Prepare update object for series
+            const seriesUpdateObj = {
+              startTime: new Date(newStartTime),
+              endTime: new Date(newEndTime),
+            };
+            
+            // Add other fields to all classes in series
+            if (title) seriesUpdateObj.title = title;
+            if (meetingUrl !== undefined) seriesUpdateObj.meetingUrl = meetingUrl;
+            if (teacher) seriesUpdateObj.teacher = teacher;
+            if (subjectID) seriesUpdateObj.subjectID = subjectID;
+            
+            // Maintain required fields
+            seriesUpdateObj.oneTime = cls.oneTime;
+            seriesUpdateObj.createdBy = cls.createdBy;
+            seriesUpdateObj.classroomID = cls.classroomID;
 
-          return Class.updateOne({ _id: cls._id }, seriesUpdateObj);
+            const result = await Class.updateOne({ _id: cls._id }, seriesUpdateObj);
+            
+            // Return success result with class info for tracking
+            return {
+              success: true,
+              classId: cls._id,
+              result: result
+            };
+          } catch (error) {
+            // Return error result for this specific class
+            return {
+              success: false,
+              classId: cls._id,
+              error: error.message
+            };
+          }
         });
 
-        await Promise.all(updatePromises);
-        return res.status(200).json({ message: "All classes in series updated successfully" });
+        // Wait for all updates to complete
+        const updateResults = await Promise.all(updatePromises);
+        
+        // Analyze results
+        const successfulUpdates = updateResults.filter(result => result.success);
+        const failedUpdates = updateResults.filter(result => !result.success);
+        
+        if (failedUpdates.length === 0) {
+          // All updates succeeded
+          return res.status(200).json({ 
+            message: "All classes in series updated successfully",
+            totalClasses: updateResults.length,
+            updatedClasses: successfulUpdates.length
+          });
+        } else if (successfulUpdates.length > 0) {
+          // Partial success - some updates failed
+          return res.status(207).json({ // 207 Multi-Status
+            message: "Classes updated with some errors",
+            totalClasses: updateResults.length,
+            successfulUpdates: successfulUpdates.length,
+            failedUpdates: failedUpdates.length,
+            failedClassIds: failedUpdates.map(f => f.classId),
+            errors: failedUpdates.map(f => ({ classId: f.classId, error: f.error }))
+          });
+        } else {
+          // All updates failed
+          return res.status(500).json({
+            error: "Failed to update any classes in the series",
+            totalClasses: updateResults.length,
+            errors: failedUpdates.map(f => ({ classId: f.classId, error: f.error }))
+          });
+        }
       } else {
         // Update only the current class
         await Class.updateOne({ _id: classID }, updateObj);
@@ -400,8 +453,11 @@ exports.updateClass = async (req, res, next) => {
       }
     } else {
       // Update single class (no groupID)
-      await Class.updateOne({ _id: classID }, updateObj);
-      const updatedClass = await Class.findById(classID).populate('subjectID').populate('teacher.teacherID');
+      const updatedClass = await Class.findOneAndUpdate(
+        { _id: classID },
+        updateObj,
+        { new: true }
+      ).populate('subjectID').populate('teacher.teacherID');
       return res.status(200).json({
         data: updatedClass,
         message: "Class updated successfully"
@@ -434,7 +490,7 @@ exports.rescheduleClass = async (req, res, next) => {
     }
 
     // check if start time is on weekend
-    if (startTime.getDay() === 0 || startTime.getDay() === 6) {
+    if (isWeekend(startTime)) {
       return res.status(400).send("Class cannot hold on weekend");
     }
 
