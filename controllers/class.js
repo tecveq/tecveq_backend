@@ -430,7 +430,7 @@ exports.updateClass = async (req, res, next) => {
           });
         } else if (successfulUpdates.length > 0) {
           // Partial success - some updates failed
-          return res.status(207).json({ // 207 Multi-Status
+          return res.status(200).json({
             message: "Classes updated with some errors",
             totalClasses: updateResults.length,
             successfulUpdates: successfulUpdates.length,
