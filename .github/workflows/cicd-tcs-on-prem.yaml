@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - release/tcs
+      - dev
 
 jobs:
   build:
