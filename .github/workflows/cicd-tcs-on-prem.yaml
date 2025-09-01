@@ -57,12 +57,3 @@ jobs:
             -e PORT='${{ secrets.PORT }}' \
             -e CLIENT_BASE_URL='${{ secrets.CLIENT_BASE_URL }}' \
             timetechnologiesllc/tca_prod
-
-  renew_ssl:
-    needs: deploy
-    runs-on: tcs-ravi
-    steps:
-      - name: Renew SSL
-        run: |
-          sudo certbot renew --non-interactive
-          sudo docker restart tca-container
