@@ -375,9 +375,9 @@ exports.updateClass = async (req, res, next) => {
             const startDateOnly = clsStart.format('YYYY-MM-DD');
             const endDateOnly = clsEnd.format('YYYY-MM-DD');
 
-            // Format new time - FIXED: Use clsStart and clsEnd instead of start and end
-            const newStartTime = createDateTimeInPKT(startDateOnly, clsStart.format('HH:mm:ss'));
-            const newEndTime = createDateTimeInPKT(endDateOnly, clsEnd.format('HH:mm:ss'));
+            // Use the new time values (from 'start' and 'end') with the existing date for each class
+            const newStartTime = createDateTimeInPKT(startDateOnly, convertToPKT(start).format('HH:mm:ss'));
+            const newEndTime = createDateTimeInPKT(endDateOnly, convertToPKT(end).format('HH:mm:ss'));
 
             // Prepare update object for series
             const seriesUpdateObj = {
@@ -430,7 +430,7 @@ exports.updateClass = async (req, res, next) => {
           });
         } else if (successfulUpdates.length > 0) {
           // Partial success - some updates failed
-          return res.status(207).json({ // 207 Multi-Status
+          return res.status(200).json({
             message: "Classes updated with some errors",
             totalClasses: updateResults.length,
             successfulUpdates: successfulUpdates.length,
