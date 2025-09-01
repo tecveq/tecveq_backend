@@ -14,13 +14,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Login to Docker Hub
-        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+        run: sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build Docker Image
-        run: docker build --no-cache -t timetechnologiesllc/tca_prod .
+        run: sudo docker build --no-cache -t timetechnologiesllc/tca_prod .
 
       - name: Publish this image to docker hub
-        run: docker push timetechnologiesllc/tca_prod:latest
+        run: sudo docker push timetechnologiesllc/tca_prod:latest
 
   deploy:
     needs: build
@@ -37,18 +37,18 @@ jobs:
           sudo certbot certonly --standalone --non-interactive --agree-tos --email timetechnologiesllc@gmail.com -d tcsbe.educativecloud.com
 
       - name: Login to Docker Hub
-        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+        run: sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Deploy Container
         run: |
           CERT_PATH="/etc/letsencrypt/live/tcsbe.educativecloud.com/fullchain.pem"
           KEY_PATH="/etc/letsencrypt/live/tcsbe.educativecloud.com/privkey.pem"
 
-          docker rm -f tca-container || true
-          docker system prune -a -f
-          docker pull timetechnologiesllc/tca_prod:latest
+          sudo docker rm -f tca-container || true
+          sudo docker system prune -a -f
+          sudo docker pull timetechnologiesllc/tca_prod:latest
 
-          docker run -d \
+          sudo docker run -d \
             -p 8080:80 -p 8443:443 \
             --name tca-container \
             -v $CERT_PATH:/etc/letsencrypt/live/tcsbe.educativecloud.com/fullchain.pem \
@@ -66,4 +66,4 @@ jobs:
       - name: Renew SSL
         run: |
           sudo certbot renew --non-interactive
-          docker restart tca-container
+          sudo docker restart tca-container
