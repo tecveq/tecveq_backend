@@ -201,8 +201,8 @@ exports.createClass = async (req, res) => {
 
     while (currentDate.isSameOrBefore(endDate)) {
       if (selectedDayNumbers.includes(currentDate.day())) {
-        const dayStart = convertToPKTAndSubtractHours(`${currentDate.format('YYYY-MM-DD')}T${startTime.split('T')[1]}`, 5);
-        const dayEnd = convertToPKTAndSubtractHours(`${currentDate.format('YYYY-MM-DD')}T${endTime.split('T')[1]}`, 5);
+        const dayStart = convertToPKTAndSubtractHours(currentDate, startTime, 5);
+        const dayEnd = convertToPKTAndSubtractHours(currentDate, endTime, 5);
 
         if (!dayStart.isValid() || !dayEnd.isValid()) {
           return res.status(400).json({
@@ -318,8 +318,8 @@ exports.updateClass = async (req, res, next) => {
     console.log(endTime, "end time");
 
 
-    const start = convertToPKTAndSubtractHours(startTime, 5);  // Convert to PKT timezone
-    const end = convertToPKTAndSubtractHours(endTime, 5);  // Convert to PKT timezone
+    const start = convertToPKTAndSubtractHours(startTime, undefined, 5);  // Convert to PKT timezone
+    const end = convertToPKTAndSubtractHours(endTime, undefined, 5);  // Convert to PKT timezone
 
     console.log(start, "start");
     console.log(end, "end");

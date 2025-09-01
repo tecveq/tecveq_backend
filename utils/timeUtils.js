@@ -6,8 +6,26 @@ const convertToPKT = (dateTime) => {
 };
 
 
-const convertToPKTAndSubtractHours = (dateTime, hours = 5) => {
-  return moment.utc(dateTime).tz('Asia/Karachi').subtract(hours, 'hours');
+const convertToPKTAndSubtractHours = (date, time, hoursToSubtract = 5) => {
+  let dateTimeString;
+  
+  if (typeof date === 'string' && typeof time === 'string') {
+    // date + time in strings
+    dateTimeString = `${date}T${time}`;
+  } else if (moment.isMoment(date) && typeof time === 'string') {
+    // date = moment, time = string
+    dateTimeString = `${date.format('YYYY-MM-DD')}T${time.split('T')[1]}`;
+  } else if (moment.isMoment(date) && moment.isMoment(time)) {
+    // date = moment, time = moment
+    dateTimeString = `${date.format('YYYY-MM-DD')}T${time.format('HH:mm:ss')}`;
+  } else if (typeof date === 'string' && time === undefined) {
+    // date = string, time = NA (when time is already in the date-string, all such instances are replaced by "undefined" in the 2nd paramenters)
+    dateTimeString = date;
+  } else {
+    throw new Error('Unsupported input types for date/time conversion');
+  }
+  
+  return moment.tz(dateTimeString, 'Asia/Karachi').subtract(hoursToSubtract, 'hours');
 };
 
 const convertDateStringToPKT = (dateString) => {
