@@ -17,7 +17,7 @@ const messageCache = {}; // Local cache for messages
 const FLUSH_INTERVAL = 15000;
 
 const flushMessagesToDB = async () => {
-  console.log("Sedning data to DB")
+  console.log("Sending data to DB")
   for (const roomName in messageCache) {
     if (messageCache[roomName].length > 0) {
       const chat = await Chat.findOne({ participants: { $all: roomName.split('_').slice(1) } });
