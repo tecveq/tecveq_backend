@@ -8,6 +8,7 @@ const mongoose = require("mongoose");
 const moment = require('moment-timezone');
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
 const Setting = require("../models/settingsModel");
+const { sql, poolPromise } = require('../db/attendanceDeviceDb');
 const { 
   convertToPKT, 
   convertToPKTAndSubtractHours, 
@@ -1012,6 +1013,88 @@ exports.getTodayClasses = async (req, res, next) => {
 
 exports.submitAttendence = async (req, res, next) => {
   try {
+
+
+       async function fetchTodayAttendance() {
+      try {
+        const pool = await poolPromise;
+
+        const query = `SELECT PersonID, PersonName, PerSonCardNo, AttendanceDateTime, AttendanceUtcTime FROM AttendanceRecordInfo ORDER BY AttendanceDateTime DESC;`;
+
+        const result = await pool.request().query(query);
+
+        console.log("All Attendance Data:", result);
+
+        const unixTimestampMs = moment().valueOf();
+        console.log("Today's Unix Timestamp (milliseconds):", unixTimestampMs);
+
+
+        // // Get today's start and end timestamps (milliseconds)
+        // const todayStart = moment().startOf('day').valueOf();
+        // const todayEnd = moment().endOf('day').valueOf();
+
+        // console.log("Today Start Timestamp:", todayStart);
+        // console.log("Today End Timestamp:", todayEnd);
+
+        // const query = `
+        //   SELECT PersonID, PersonName, PerSonCardNo, AttendanceDateTime, AttendanceUtcTime
+        //   FROM AttendanceRecordInfo
+        //   WHERE AttendanceDateTime BETWEEN @todayStart AND @todayEnd
+        //   ORDER BY AttendanceDateTime DESC;
+        // `;
+
+        // const result = await pool.request()
+        //   .input('todayStart', sql.BigInt, todayStart) // Use BIGINT for timestamp comparison
+        //   .input('todayEnd', sql.BigInt, todayEnd)
+        //   .query(query);
+
+
+        // console.log("Raw Attendance Data:", result.recordset);
+
+        // Convert BIGINT timestamps and filter duplicates
+        const uniqueRecords = {};
+
+        const formattedData = result.recordset.reduce((acc, record) => {
+          const rollNO = record.PersonID || "0000";
+          const attendanceDate = record.AttendanceDateTime
+            ? moment(parseInt(record.AttendanceDateTime)).format('YYYY-MM-DD') // Get only date part
+            : null;
+
+          if (attendanceDate) {
+            const uniqueKey = `${rollNO}-${attendanceDate}`;
+
+            // Store only the first occurrence (latest due to ORDER BY DESC)
+            if (!uniqueRecords[uniqueKey]) {
+              uniqueRecords[uniqueKey] = {
+                rollNO,
+                name: record.PersonName,
+                AttendanceDateTime: moment(parseInt(record.AttendanceDateTime)).format('YYYY-MM-DD HH:mm:ss'),
+              };
+              acc.push(uniqueRecords[uniqueKey]);
+            }
+          }
+          return acc;
+        }, []);
+
+        console.log("Filtered Attendance Data:", formattedData);
+
+        return formattedData;
+      } catch (error) {
+        console.error("Error fetching attendance:", error);
+      }
+    }
+
+    // Run function only after successful database connection
+    poolPromise.then(() => {
+      console.log("Connected to MSSQL Database. Fetching today's attendance...");
+      fetchTodayAttendance();
+    }).catch(err => {
+      console.error("Database Connection Failed:", err.message);
+    });
+
+
+    const attendanceData = await fetchTodayAttendance();
+    
     const { id } = req.params; // Class ID
     const { data, classroomID, startTime } = req.body; // Attendance data submitted by the teacher
 
