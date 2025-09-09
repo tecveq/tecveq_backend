@@ -8,13 +8,14 @@ const mongoose = require("mongoose");
 const moment = require('moment-timezone');
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
 const Setting = require("../models/settingsModel");
+const userRepository = require("../repositories/userRepository");
 const { sql, poolPromise } = require('../db/attendanceDeviceDb');
-const { 
-  convertToPKT, 
-  convertToPKTAndSubtractHours, 
+const {
+  convertToPKT,
+  convertToPKTAndSubtractHours,
   convertDateStringToPKT,
   createDateTimeInPKT,
-  isWeekend 
+  isWeekend
 } = require("../utils/timeUtils");
 
 
@@ -343,18 +344,18 @@ exports.updateClass = async (req, res, next) => {
 
     // Prepare update object
     const updateObj = {};
-    
+
     // Update basic fields if provided
     if (title) updateObj.title = title;
     if (meetingUrl !== undefined) updateObj.meetingUrl = meetingUrl;
     if (teacher) updateObj.teacher = teacher;
     if (subjectID) updateObj.subjectID = subjectID;
-    
+
     // Ensure required fields are maintained
     updateObj.oneTime = existingClass.oneTime;
     updateObj.createdBy = existingClass.createdBy;
     updateObj.classroomID = existingClass.classroomID;
-    
+
     // Update time-related fields
     updateObj.startTime = updatedStartTime;
     updateObj.endTime = updatedEndTime;
@@ -385,20 +386,20 @@ exports.updateClass = async (req, res, next) => {
               startTime: new Date(newStartTime),
               endTime: new Date(newEndTime),
             };
-            
+
             // Add other fields to all classes in series
             if (title) seriesUpdateObj.title = title;
             if (meetingUrl !== undefined) seriesUpdateObj.meetingUrl = meetingUrl;
             if (teacher) seriesUpdateObj.teacher = teacher;
             if (subjectID) seriesUpdateObj.subjectID = subjectID;
-            
+
             // Maintain required fields
             seriesUpdateObj.oneTime = cls.oneTime;
             seriesUpdateObj.createdBy = cls.createdBy;
             seriesUpdateObj.classroomID = cls.classroomID;
 
             const result = await Class.updateOne({ _id: cls._id }, seriesUpdateObj);
-            
+
             // Return success result with class info for tracking
             return {
               success: true,
@@ -417,14 +418,14 @@ exports.updateClass = async (req, res, next) => {
 
         // Wait for all updates to complete
         const updateResults = await Promise.all(updatePromises);
-        
+
         // Analyze results
         const successfulUpdates = updateResults.filter(result => result.success);
         const failedUpdates = updateResults.filter(result => !result.success);
-        
+
         if (failedUpdates.length === 0) {
           // All updates succeeded
-          return res.status(200).json({ 
+          return res.status(200).json({
             message: "All classes in series updated successfully",
             totalClasses: updateResults.length,
             updatedClasses: successfulUpdates.length
@@ -1015,7 +1016,7 @@ exports.submitAttendence = async (req, res, next) => {
   try {
 
 
-       async function fetchTodayAttendance() {
+    async function fetchTodayAttendance() {
       try {
         const pool = await poolPromise;
 
@@ -1094,7 +1095,7 @@ exports.submitAttendence = async (req, res, next) => {
 
 
     const attendanceData = await fetchTodayAttendance();
-    
+
     const { id } = req.params; // Class ID
     const { data, classroomID, startTime } = req.body; // Attendance data submitted by the teacher
 
@@ -1122,6 +1123,25 @@ exports.submitAttendence = async (req, res, next) => {
     if (!classroom) {
       return res.status(404).json({ message: "Classroom not found" });
     }
+
+    const studentIds = data.map(student => student.studentID);
+    const studentRecords = await userRepository.getStudentRecordsByIds(studentIds);
+
+
+    const studentData = studentRecords.map(student => ({
+      studentID: student._id.toString(),
+      rollNOS: Number(student.rollNo),  // Convert to Number for type consistency
+      employeeName: student.name
+    }));
+
+
+
+    const formatRollNumbers = new Set(attendanceData.map(item => Number(item.rollNO)));
+
+    const unmatchedStudents = studentData.filter(student => !formatRollNumbers.has(student.rollNOS));
+
+    console.log("Unmatched students:", unmatchedStudents)
+
 
     // Check if there is a teacher with type "head"
     const isHeadTeacher = classroom.teachers.some(item => item.type === "head");
