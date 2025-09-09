@@ -13,6 +13,10 @@ class UserRepository {
             { new: true }
         );
     }
+    async getStudentRecordsByIds(studentIds) {
+        return await User.find({ _id: { $in: studentIds } });
+    }
+
 }
 
 module.exports = new UserRepository();
