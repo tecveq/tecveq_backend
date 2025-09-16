@@ -39,6 +39,7 @@ const authRouter = require("./routes/auth");
 const settingsRouter = require("./routes/settingsRouter")
 const Level = require("./models/level");
 const User = require("./models/user");
+const { initializeAttendanceProcessing } = require("./db/attendanceDeviceDb");
 
 
 
@@ -203,6 +204,7 @@ mongoose.connect(
     if (err) {
       console.log(err);
     } else {
+      initializeAttendanceProcessing();
       console.log("Connected to MongoDB");
     }
   }
