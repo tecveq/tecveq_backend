@@ -7,9 +7,7 @@ const User = require("../models/user");
 const mongoose = require("mongoose");
 const moment = require('moment-timezone');
 const { createSpace, authorize, getMeetingParticipents } = require("../test-meet");
-const Setting = require("../models/settingsModel");
 const userRepository = require("../repositories/userRepository");
-const { sql, poolPromise } = require('../db/attendanceDeviceDb');
 const {
   convertToPKT,
   convertToPKTAndSubtractHours,

@@ -30,6 +30,7 @@
     "moment-timezone": "^0.5.46",
     "mongoose": "^5.12.5",
     "morgan": "~1.9.1",
+    "mssql": "^11.0.1",
     "multer": "*",
     "node-cron": "^3.0.3",
     "nodemon": "^2.0.22",
