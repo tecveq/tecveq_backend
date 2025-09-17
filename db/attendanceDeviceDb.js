@@ -220,7 +220,7 @@ async function initializeAttendanceProcessing() {
             await processAttendanceData();
             
             // Process every 2 seconds
-            setInterval(processAttendanceData, 2000);
+            setInterval(processAttendanceData, 1000);
             
             console.log('Attendance processing started - running every 2 seconds');
         }, 5000); // Wait 5 seconds after main server starts
