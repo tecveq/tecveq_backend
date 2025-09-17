@@ -1016,85 +1016,8 @@ exports.submitAttendence = async (req, res, next) => {
   try {
 
 
-    async function fetchTodayAttendance() {
-      try {
-        const pool = await poolPromise;
-
-        const query = `SELECT PersonID, PersonName, PerSonCardNo, AttendanceDateTime, AttendanceUtcTime FROM AttendanceRecordInfo ORDER BY AttendanceDateTime DESC;`;
-
-        const result = await pool.request().query(query);
-
-        console.log("All Attendance Data:", result);
-
-        const unixTimestampMs = moment().valueOf();
-        console.log("Today's Unix Timestamp (milliseconds):", unixTimestampMs);
 
 
-        // // Get today's start and end timestamps (milliseconds)
-        // const todayStart = moment().startOf('day').valueOf();
-        // const todayEnd = moment().endOf('day').valueOf();
-
-        // console.log("Today Start Timestamp:", todayStart);
-        // console.log("Today End Timestamp:", todayEnd);
-
-        // const query = `
-        //   SELECT PersonID, PersonName, PerSonCardNo, AttendanceDateTime, AttendanceUtcTime
-        //   FROM AttendanceRecordInfo
-        //   WHERE AttendanceDateTime BETWEEN @todayStart AND @todayEnd
-        //   ORDER BY AttendanceDateTime DESC;
-        // `;
-
-        // const result = await pool.request()
-        //   .input('todayStart', sql.BigInt, todayStart) // Use BIGINT for timestamp comparison
-        //   .input('todayEnd', sql.BigInt, todayEnd)
-        //   .query(query);
-
-
-        // console.log("Raw Attendance Data:", result.recordset);
-
-        // Convert BIGINT timestamps and filter duplicates
-        const uniqueRecords = {};
-
-        const formattedData = result.recordset.reduce((acc, record) => {
-          const rollNO = record.PersonID || "0000";
-          const attendanceDate = record.AttendanceDateTime
-            ? moment(parseInt(record.AttendanceDateTime)).format('YYYY-MM-DD') // Get only date part
-            : null;
-
-          if (attendanceDate) {
-            const uniqueKey = `${rollNO}-${attendanceDate}`;
-
-            // Store only the first occurrence (latest due to ORDER BY DESC)
-            if (!uniqueRecords[uniqueKey]) {
-              uniqueRecords[uniqueKey] = {
-                rollNO,
-                name: record.PersonName,
-                AttendanceDateTime: moment(parseInt(record.AttendanceDateTime)).format('YYYY-MM-DD HH:mm:ss'),
-              };
-              acc.push(uniqueRecords[uniqueKey]);
-            }
-          }
-          return acc;
-        }, []);
-
-        console.log("Filtered Attendance Data:", formattedData);
-
-        return formattedData;
-      } catch (error) {
-        console.error("Error fetching attendance:", error);
-      }
-    }
-
-    // Run function only after successful database connection
-    poolPromise.then(() => {
-      console.log("Connected to MSSQL Database. Fetching today's attendance...");
-      fetchTodayAttendance();
-    }).catch(err => {
-      console.error("Database Connection Failed:", err.message);
-    });
-
-
-    const attendanceData = await fetchTodayAttendance();
 
     const { id } = req.params; // Class ID
     const { data, classroomID, startTime } = req.body; // Attendance data submitted by the teacher
@@ -1135,85 +1058,77 @@ exports.submitAttendence = async (req, res, next) => {
     }));
 
 
-
-    const formatRollNumbers = new Set(attendanceData.map(item => Number(item.rollNO)));
-
-    const unmatchedStudents = studentData.filter(student => !formatRollNumbers.has(student.rollNOS));
-
-    console.log("Unmatched students:", unmatchedStudents)
-
-
     // Check if there is a teacher with type "head"
-    const isHeadTeacher = classroom.teachers.some(item => item.type === "head");
+    // const isHeadTeacher = classroom.teachers.some(item => item.type === "head");
 
-    if (isHeadTeacher) {
-      const todayStart = new Date(startTime).setHours(0, 0, 0, 0); // Start of the day (00:00:00)
-      const todayEnd = new Date(startTime).setHours(23, 59, 59, 999); // End of the day (23:59:59)
+    // if (isHeadTeacher) {
+    const todayStart = new Date(startTime).setHours(0, 0, 0, 0); // Start of the day (00:00:00)
+    const todayEnd = new Date(startTime).setHours(23, 59, 59, 999); // End of the day (23:59:59)
 
-      // Fetch today's head attendance record
-      const headAttendance = await Attendance.findOne({
-        entityId: classroomID,
-        Date: { $gte: todayStart, $lt: todayEnd },
+    // Fetch today's head attendance record
+    const headAttendance = await Attendance.findOne({
+      entityId: classroomID,
+      Date: { $gte: todayStart, $lt: todayEnd },
+    });
+
+    if (!headAttendance) {
+      return res.status(400).json({ message: "No head attendance record found for today" });
+    }
+
+    // Compare attendance between head and teacher
+    const absentStudents = data
+      .filter(student => !student.isPresent)
+      .map(student => student.studentID.toString());
+
+    const headPresentStudents = headAttendance.students
+      .filter(student => student.isPresent)
+      .map(student => student.studentID.toString());
+
+    const discrepancyStudents = absentStudents.filter(student =>
+      headPresentStudents.includes(student)
+    );
+
+    if (discrepancyStudents.length > 0) {
+      // Construct the detailed message for the admin notification
+      const classTitle = studentClass.title;
+      const subjectName = studentClass.subjectID.name; // Assuming subjectID has a 'name' field
+
+      const admins = await User.findOne({ userType: "admin" });
+
+      // Fetch students and their guardians
+      const students = await User.find({
+        _id: { $in: discrepancyStudents },
       });
 
-      if (!headAttendance) {
-        return res.status(400).json({ message: "No head attendance record found for today" });
-      }
+      // Create a map of student roll numbers and extract guardian IDs
+      const studentMap = students.reduce((map, student) => {
+        map[student._id.toString()] = { name: student.name, rollNo: student.rollNo || "N/A" };
+        return map;
+      }, {});
 
-      // Compare attendance between head and teacher
-      const absentStudents = data
-        .filter(student => !student.isPresent)
-        .map(student => student.studentID.toString());
+      // Extract guardian IDs from the student records
+      const guardianIds = students
+        .filter(student => student.guardianId) // Ensure the student has a guardianId
+        .map(student => student.guardianId.toString());
 
-      const headPresentStudents = headAttendance.students
-        .filter(student => student.isPresent)
-        .map(student => student.studentID.toString());
+      // Combine admin ID with unique guardian IDs
+      const deliveredTo = [admins?._id, ...new Set(guardianIds)]; // Use `Set` to avoid duplicate IDs
 
-      const discrepancyStudents = absentStudents.filter(student =>
-        headPresentStudents.includes(student)
-      );
+      // Generate notifications using the lookup map
+      const notifications = discrepancyStudents.map(studentID => {
+        const studentInfo = studentMap[studentID] || { name: "Unknown Student", rollNo: "N/A" };
+        return {
+          userID: studentID, // Admin's User ID
+          message: `Student ${studentInfo.name} (Roll No: ${studentInfo.rollNo}) is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present earlier in the head attendance.`,
+          url: `/students/${studentID}`, // URL to the student's page
+          deliveredTo: deliveredTo, // Deliver to admin and guardians
+        };
+      });
 
-      if (discrepancyStudents.length > 0) {
-        // Construct the detailed message for the admin notification
-        const classTitle = studentClass.title;
-        const subjectName = studentClass.subjectID.name; // Assuming subjectID has a 'name' field
-
-        const admins = await User.findOne({ userType: "admin" });
-
-        // Fetch students and their guardians
-        const students = await User.find({
-          _id: { $in: discrepancyStudents },
-        });
-
-        // Create a map of student roll numbers and extract guardian IDs
-        const studentMap = students.reduce((map, student) => {
-          map[student._id.toString()] = { name: student.name, rollNo: student.rollNo || "N/A" };
-          return map;
-        }, {});
-
-        // Extract guardian IDs from the student records
-        const guardianIds = students
-          .filter(student => student.guardianId) // Ensure the student has a guardianId
-          .map(student => student.guardianId.toString());
-
-        // Combine admin ID with unique guardian IDs
-        const deliveredTo = [admins?._id, ...new Set(guardianIds)]; // Use `Set` to avoid duplicate IDs
-
-        // Generate notifications using the lookup map
-        const notifications = discrepancyStudents.map(studentID => {
-          const studentInfo = studentMap[studentID] || { name: "Unknown Student", rollNo: "N/A" };
-          return {
-            userID: studentID, // Admin's User ID
-            message: `Student ${studentInfo.name} (Roll No: ${studentInfo.rollNo}) is marked absent in the class "${classTitle}" for the subject "${subjectName}" but was present earlier in the head attendance.`,
-            url: `/students/${studentID}`, // URL to the student's page
-            deliveredTo: deliveredTo, // Deliver to admin and guardians
-          };
-        });
-
-        // Send notifications
-        await Notification.insertMany(notifications);
-      }
+      // Send notifications
+      await Notification.insertMany(notifications);
     }
+    // }
 
     // Fetch today's start date (ensure it is in UTC)
 
