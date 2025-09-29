@@ -316,7 +316,7 @@ exports.getAllAssignmentsOfStudent = async (req, res, next) => {
     const classroomIDs = classrooms.map((c) => c._id);
     const assignments = await Assignment.find({
       classroomID: { $in: classroomIDs },
-    }).populate("subjectID");
+    }).populate("subjectID").populate("classroomID");
 
     // check if user has submitted the assignment and add isSubmitted to each assignment
     const assignmentsWithSubmission = assignments.map((assignment) => {
