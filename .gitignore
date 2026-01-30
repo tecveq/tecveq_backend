@@ -33,3 +33,12 @@ changes.txt
 /secrets
 
 /client
+
+
+# Secrets
+credentials.json
+token.json
+config/*firebase-adminsdk*.json
+
+# Env
+.env
