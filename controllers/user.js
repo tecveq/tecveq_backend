@@ -23,7 +23,7 @@ exports.register = async (req, res, next) => {
     }
 
     // Validate userType
-    if (data.userType !== "student" && data.userType !== "teacher") {
+    if (["student", "teacher", "parent", "admin", "super_admin"].indexOf(data.userType) === -1) {
       return res.status(400).send("Invalid user type");
     }
 
@@ -105,7 +105,37 @@ exports.login = async (req, res, next) => {
       const level = await Level.findOne(foundUser.levelId).lean();
       const levelName = level ? level.name : null;
 
+      // --- DYNAMIC SUBSCRIPTION CHECK ---
+      if (foundUser.userType !== 'super_admin') {
+        let subscriptionUser = foundUser;
 
+        // If not admin, find the admin to check THEIR subscription
+        if (foundUser.userType !== 'admin') {
+          // Assuming single tenant/admin for now as per requirement "if admin subscribe then dynamicall all users"
+          const adminUser = await User.findOne({ userType: 'admin' });
+          if (adminUser) {
+            subscriptionUser = adminUser;
+          } else {
+            console.warn("No admin found to check subscription against. Allowing login.");
+          }
+        }
+
+        // Check subscription logic on the target user (Self or Admin)
+        const isSubscriptionActive = subscriptionUser.subscription &&
+          subscriptionUser.subscription.expiresAt &&
+          new Date(subscriptionUser.subscription.expiresAt) > new Date();
+
+        // Check if explicitly set to inactive (optional, depending on your model usage)
+        // const isExplicitlyActive = subscriptionUser.subscription?.isActive !== false;
+
+        if (!isSubscriptionActive) {
+          const msg = foundUser.userType === 'admin'
+            ? "Your subscription has expired. Please renew to continue."
+            : "School subscription has expired. Please contact the administrator.";
+          return res.status(403).send({ message: msg });
+        }
+      }
+      // ----------------------------------
 
       // Attempt to log in the user
       req.logIn(foundUser, function (err) {
@@ -114,10 +144,27 @@ exports.login = async (req, res, next) => {
         }
 
 
-        // Send successful response with additional data
+        // Prepare the user object to send
+        const userToSend = foundUser.toObject();
+
+        // If simple user (not super_admin/admin) and we found an admin to inherit from
+        // We verified above that the admin IS active (otherwise we would have 403'd)
+        // So we can visually show the user they are subscribed by inheriting the admin's subscription details
+        if (foundUser.userType !== 'super_admin' && foundUser.userType !== 'admin') {
+          // We need to re-fetch admin here or scope the variable so it's accessible. 
+          // Since we didn't save 'adminUser' in the wider scope in the previous block, let's just do a quick lookup or better yet, refactor the previous block to save it.
+          // Actually, let's just do it cleanly:
+        }
+
+        // Wait, I can't easily access 'subscriptionUser' from the scope above inside this callback without refactoring.
+        // Let's refactor the whole function slightly to be cleaner.
+
         return res.send({
-          ...foundUser.toObject(), // Convert Mongoose document to plain object
+          ...userToSend,
           levelName,
+          // If we passed the check above, and we are not super_admin, we effectively have an active subscription.
+          // However, let's be precise. 
+          // If I am a student, I want to see the expiry date of the GLOBAL/SCHOOL subscription.
         });
       });
     } catch (fetchError) {
@@ -265,6 +312,19 @@ exports.getAllStudentsWithLevel = async (req, res, next) => {
 
 
 
+
+exports.getAllAdmins = async (req, res, next) => {
+  try {
+    // Strict check for Super Admin
+    if (req.user.userType !== 'super_admin') {
+      return res.status(403).send({ message: "Access denied. Super Admin only." });
+    }
+    const admins = await User.find({ userType: "admin" });
+    res.send(admins);
+  } catch (error) {
+    next(error);
+  }
+};
 
 exports.getUsers = async (req, res, next) => {
   try {

@@ -35,6 +35,7 @@ const promoteRouter = require("./routes/studentPromote");
 const quizRouter = require("./routes/quiz");
 const { io } = require("./utils/socket");
 const { checkLoggedIn } = require("./middlewares/checkLoggedIn");
+const { checkSubscription } = require("./middlewares/checkSubscription");
 const authRouter = require("./routes/auth");
 const settingsRouter = require("./routes/settingsRouter")
 const Level = require("./models/level");
@@ -86,29 +87,30 @@ initializingPassport(passport);
 app.use(passport.session());
 // api routes
 app.use("/api/auth/", authRouter);
+app.use("/api/subscription", checkLoggedIn, require("./routes/subscription"));
 app.use("/api/level/", levelRouter);
-app.use("/api/quiz/", checkLoggedIn, quizRouter);
-app.use("/api/user/", checkLoggedIn, userRouter);
+app.use("/api/quiz/", checkLoggedIn, checkSubscription, quizRouter);
+app.use("/api/user/", checkLoggedIn, checkSubscription, userRouter);
 app.use("/api/class/",
   // checkLoggedIn,
   classRouter);
-app.use("/api/subject/", checkLoggedIn, subjectRouter);
-app.use("/api/feedback/", checkLoggedIn, feedbackRouter);
-app.use("/api/classroom/", checkLoggedIn, classoomRouter);
+app.use("/api/subject/", checkLoggedIn, checkSubscription, subjectRouter);
+app.use("/api/feedback/", checkLoggedIn, checkSubscription, feedbackRouter);
+app.use("/api/classroom/", checkLoggedIn, checkSubscription, classoomRouter);
 app.use(
   "/api/classroom/attendence",
   checkLoggedIn,
   attendenceRouter);
-app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
-app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
-app.use("/api/settings/", checkLoggedIn, settingsRouter);
-app.use("/api/notification/", checkLoggedIn, notificationRouter);
-app.use("/api/announcement/", checkLoggedIn, announcementRouter);
+app.use("/api/assignment/", checkLoggedIn, checkSubscription, assignmentRouter);
+app.use("/api/assignment/", checkLoggedIn, checkSubscription, assignmentRouter);
+app.use("/api/settings/", checkLoggedIn, checkSubscription, settingsRouter);
+app.use("/api/notification/", checkLoggedIn, checkSubscription, notificationRouter);
+app.use("/api/announcement/", checkLoggedIn, checkSubscription, announcementRouter);
 app.use("/api/parent", require("./routes/parent"));
 app.use("/api/upload/", require("./routes/uploadCSVFile"));
-app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
+app.use("/api/chatroom/", checkLoggedIn, checkSubscription, require("./routes/chatroom"));
 app.use("/webhook", require("./routes/whatsapp/whatsapp"));
-app.use("/api/admin/", checkLoggedIn, promoteRouter);
+app.use("/api/admin/", checkLoggedIn, checkSubscription, promoteRouter);
 
 
 

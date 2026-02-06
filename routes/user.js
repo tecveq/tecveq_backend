@@ -15,6 +15,9 @@ userRouter.get("/logout", controller.logout);
 // get users not in classroom
 userRouter.get("/not-in-classroom/:levelID", controller.getUsersNotInClassroom);
 
+// get admins (Super Admin only)
+userRouter.get("/admins", controller.getAllAdmins);
+
 // get users
 userRouter.get("/", controller.getUsers);
 
