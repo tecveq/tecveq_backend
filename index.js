@@ -53,9 +53,9 @@ app.use(cookieParser());
 app.use(
   cors({
     credentials: true,
-    origin: isProduction
-      ? ["https://tca-frontend-sync-git-main-zees-projects-3a466cf5.vercel.app", "https://tca-frontend-sync-git-lms-123-nit-demo-zees-projects-3a466cf5.vercel.app", "https://tca.educativecloud.com", "https://tcsravi.educativecloud.com", "https://tcsshalimar.educativecloud.com", "*"]  // Production URLs only
-      : ["http://localhost:5173", "*"],
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",")
+      : (isProduction ? [] : ["http://localhost:5173", "http://localhost:4173"]),
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -89,28 +89,28 @@ app.use(passport.session());
 app.use("/api/auth/", authRouter);
 app.use("/api/subscription", checkLoggedIn, require("./routes/subscription"));
 app.use("/api/level/", levelRouter);
-app.use("/api/quiz/", checkLoggedIn, checkSubscription, quizRouter);
-app.use("/api/user/", checkLoggedIn, checkSubscription, userRouter);
+app.use("/api/quiz/", checkLoggedIn, quizRouter);
+app.use("/api/user/", checkLoggedIn, userRouter);
 app.use("/api/class/",
   // checkLoggedIn,
   classRouter);
-app.use("/api/subject/", checkLoggedIn, checkSubscription, subjectRouter);
-app.use("/api/feedback/", checkLoggedIn, checkSubscription, feedbackRouter);
-app.use("/api/classroom/", checkLoggedIn, checkSubscription, classoomRouter);
+app.use("/api/subject/", checkLoggedIn, subjectRouter);
+app.use("/api/feedback/", checkLoggedIn, feedbackRouter);
+app.use("/api/classroom/", checkLoggedIn, classoomRouter);
 app.use(
   "/api/classroom/attendence",
   checkLoggedIn,
   attendenceRouter);
-app.use("/api/assignment/", checkLoggedIn, checkSubscription, assignmentRouter);
-app.use("/api/assignment/", checkLoggedIn, checkSubscription, assignmentRouter);
-app.use("/api/settings/", checkLoggedIn, checkSubscription, settingsRouter);
-app.use("/api/notification/", checkLoggedIn, checkSubscription, notificationRouter);
-app.use("/api/announcement/", checkLoggedIn, checkSubscription, announcementRouter);
+app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
+app.use("/api/assignment/", checkLoggedIn, assignmentRouter);
+app.use("/api/settings/", checkLoggedIn, settingsRouter);
+app.use("/api/notification/", checkLoggedIn, notificationRouter);
+app.use("/api/announcement/", checkLoggedIn, announcementRouter);
 app.use("/api/parent", require("./routes/parent"));
 app.use("/api/upload/", require("./routes/uploadCSVFile"));
-app.use("/api/chatroom/", checkLoggedIn, checkSubscription, require("./routes/chatroom"));
+app.use("/api/chatroom/", checkLoggedIn, require("./routes/chatroom"));
 app.use("/webhook", require("./routes/whatsapp/whatsapp"));
-app.use("/api/admin/", checkLoggedIn, checkSubscription, promoteRouter);
+app.use("/api/admin/", checkLoggedIn, promoteRouter);
 
 
 
@@ -201,7 +201,7 @@ app.use(function (err, req, res, next) {
 const db = process.env.MONGO_CONNECTION;
 mongoose.connect(
   db,
-  { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true, tlsAllowInvalidCertificates: true },
+  { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true },
   (err) => {
     if (err) {
       console.log(err);
@@ -211,25 +211,26 @@ mongoose.connect(
     }
   }
 );
-var port = isProduction ? 443 : 4000;
-const sslOptions = isProduction
+var port = process.env.PORT || (isProduction ? 443 : 4000);
+const sslKeyPath = process.env.SSL_KEY_PATH;
+const sslCertPath = process.env.SSL_CERT_PATH;
+const sslOptions = (isProduction && sslKeyPath && sslCertPath && fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath))
   ? {
-    key: fs.readFileSync("/etc/letsencrypt/live/tca.educativecloud.com/privkey.pem"),
-    cert: fs.readFileSync("/etc/letsencrypt/live/tca.educativecloud.com/fullchain.pem"),
+    key: fs.readFileSync(sslKeyPath),
+    cert: fs.readFileSync(sslCertPath),
   }
-  : undefined;
-var server = isProduction
+  : null;
+
+var server = (sslOptions)
   ? https.createServer(sslOptions, app)
   : http.createServer(app);
+
 io.attach(server);
 server.listen(port, () => {
-  if (isProduction) {
-    console.log(`AWS Server is running on port ${443}`);
-  } else {
-    console.log(`Server is running on port ${port}`);
-  }
+  console.log(`Server is running on port ${port} ${sslOptions ? '(SSL enabled)' : ''}`);
 });
-isProduction &&
+
+if (isProduction && sslOptions && process.env.REDIRECT_HTTP !== "false") {
   http
     .createServer((req, res) => {
       res.writeHead(301, {
@@ -238,6 +239,7 @@ isProduction &&
       res.end();
     })
     .listen(80);
+}
 server.on("error", onError);
 server.on("listening", onListening);
 function normalizePort(val) {

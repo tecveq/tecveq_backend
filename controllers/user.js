@@ -974,42 +974,65 @@ exports.getStudentSubjects = async (req, res, next) => {
       attendance: { $elemMatch: { studentID: studentID } }
     });
 
-    let matched = false;
+    // Use a Map to ensure unique subjects based on subject ID
+    const uniqueSubjectsMap = new Map();
 
-    let newarr = [];
-    subjects.map((item) => {
-      classes.map((cls) => {
+    subjects.forEach((item) => {
+      if (!item.subject || !item.subject._id) return;
 
-        if (cls.subjectID.toString() == item.subject._id.toString()) {
+      const subjectIdStr = item.subject._id.toString();
 
-          let avgAttendancePer = (
-            (classes.reduce((total, classs) => {
-              const attendanceRecord = classs.attendance.find(
-                (sub) => sub.studentID.toString() === studentID.toString()
-              );
-              return total + (attendanceRecord && attendanceRecord.isPresent ? 1 : 0);
-            }, 0) /
-              classes.reduce((total, classs) => {
-                const attendanceRecord = classs.attendance.find(
-                  (sub) => sub.studentID.toString() === studentID.toString()
-                );
-                // Count the class if the attendance record for this student exists
-                return total + (attendanceRecord ? 1 : 0);
-              }, 0)) *
-            100
-          ).toFixed(0);
+      // If we haven't processed this subject yet, or if needed to handle multiple teachers for same subject (logic depends on requirements, 
+      // but "same subject name... to a same teacher" implies we just want one entry per subject-teacher combo).
+      // The previous issue was that it was looping through `classes` and pushing for EVERY class match.
 
-          let myobj = { ...item, classs: cls, avgAttendancePer }
-          matched = true;
-          newarr.push(myobj);
+      // Let's create a unique key based on SubjectID + TeacherName to be safe, 
+      // or just SubjectID if the student only sees the subject once regardless of teacher.
+      // Based on the user complaint "same subject name showing for time to a same teacher", 
+      // it means even for the SAME teacher it was duplicating.
+      const uniqueKey = `${subjectIdStr}-${item.teacher}`;
+
+      if (!uniqueSubjectsMap.has(uniqueKey)) {
+
+        // Calculate average attendance for this specific subject across ALL classes
+        const subjectClasses = classes.filter(cls =>
+          cls.subjectID && cls.subjectID.toString() === subjectIdStr
+        );
+
+        let avgAttendancePer = 0;
+
+        if (subjectClasses.length > 0) {
+          let totalAttended = 0;
+          let totalClasses = 0;
+
+          subjectClasses.forEach(cls => {
+            const attendanceRecord = cls.attendance.find(
+              (sub) => sub.studentID.toString() === studentID.toString()
+            );
+
+            // Only count this class if the student was marked in attendance (present or absent)
+            // If the record exists, they were marked.
+            if (attendanceRecord) {
+              totalClasses++;
+              if (attendanceRecord.isPresent) {
+                totalAttended++;
+              }
+            }
+          });
+
+          if (totalClasses > 0) {
+            avgAttendancePer = ((totalAttended / totalClasses) * 100).toFixed(0);
+          }
         }
-      });
-      if (matched) {
-        matched = false;
-      } else {
-        newarr.push(item);
+
+        uniqueSubjectsMap.set(uniqueKey, {
+          ...item,
+          avgAttendancePer
+        });
       }
-    })
+    });
+
+    const newarr = Array.from(uniqueSubjectsMap.values());
 
     console.log("new array is : ", newarr);
 
