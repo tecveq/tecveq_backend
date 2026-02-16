@@ -55,7 +55,7 @@ app.use(
     credentials: true,
     origin: process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(",")
-      : (isProduction ? ["https://tecveq-frontend.vercel.app"] : ["http://localhost:5173", "http://localhost:4173"]),
+      : (isProduction ? ["https://tecveq-frontend.onrender.com"] : ["http://localhost:5173", "http://localhost:4173"]),
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
