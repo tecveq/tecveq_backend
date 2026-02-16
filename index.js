@@ -45,6 +45,7 @@ const { initializeAttendanceProcessing } = require("./db/attendanceDeviceDb");
 
 
 var app = express();
+app.set("trust proxy", 1);
 let isProduction = process.env.NODE_ENV == "production";
 app.use(logger("dev"));
 app.use(express.json());
@@ -74,6 +75,7 @@ app.use(
       ? {
         secure: true,
         sameSite: "none",
+        httpOnly: true,
       }
       : {
         sameSite: "lax", // "none" for cross-origin, "lax" for development
